@@ -1,0 +1,1520 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"></head><body>
+<title>Slime Equations</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow:wght@500;600&family=Barlow+Condensed:wght@700;800&display=swap">
+<style>
+/* Layout: full-height arena. Top bar, centred stage with the canvas, touch pad bar underneath; menu/setup/league are full-screen overlays. */
+:root {
+  --bg: #070a1c;
+  --panel: #0e1433;
+  --panel-2: #151c47;
+  --line: #2a3487;
+  --ink: #f4f7ff;
+  --mute: #9aa5dc;
+  --neon: #c6ff3d;
+  --gold: #ffd23d;
+  --p1: #2f8bff;
+  --p2: #ff3d5a;
+  --display: "Barlow Condensed", "Arial Narrow", "Arial", sans-serif;
+  --body: "Barlow", "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html, body { height: 100%; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--body);
+  font-size: 16px;
+  padding-block: 0;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  overflow: hidden;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+[hidden] { display: none !important; }
+button { font-family: inherit; }
+:focus-visible { outline: 3px solid var(--gold); outline-offset: 2px; }
+
+#app { height: 100%; display: flex; flex-direction: column; min-height: 0; }
+#topbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding-block: 6px; flex: none; }
+#topbar .ttl { font-family: var(--display); font-weight: 800; font-size: 22px; letter-spacing: .08em; text-transform: uppercase; color: var(--neon); }
+.chip {
+  font-family: var(--display); font-weight: 700; font-size: 17px; letter-spacing: .06em; text-transform: uppercase;
+  background: var(--panel); color: var(--ink); border: 2px solid var(--line); border-radius: 8px; padding: 6px 14px; min-height: 40px; cursor: pointer;
+}
+.chip:hover { border-color: var(--neon); }
+#stageWrap { flex: 1; min-height: 0; display: flex; align-items: center; justify-content: center; }
+#stage { position: relative; width: 1200px; height: 700px; --s: 1; border-radius: 10px; overflow: hidden; box-shadow: 0 0 0 2px var(--line), 0 0 28px rgba(198,255,61,.25); background: #000; }
+#cv { display: block; width: 100%; height: 100%; touch-action: none; }
+
+#touchbar { flex: none; display: none; justify-content: space-between; align-items: center; gap: 10px; padding-block: 8px; padding-bottom: calc(8px + env(safe-area-inset-bottom, 0px)); }
+body.touch #touchbar { display: flex; }
+.pad { display: flex; align-items: center; gap: 8px; }
+.pad .tag { font-family: var(--display); font-weight: 800; font-size: 18px; letter-spacing: .1em; width: 28px; text-align: center; }
+.pad.p1 .tag { color: var(--p1); }
+.pad.p2 .tag { color: var(--p2); }
+.tbtn {
+  width: 64px; height: 64px; border-radius: 16px; border: 3px solid var(--line); background: var(--panel-2); color: var(--ink);
+  display: flex; align-items: center; justify-content: center; touch-action: none; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; padding: 0;
+}
+.pad.p1 .tbtn { border-color: var(--p1); }
+.pad.p2 .tbtn { border-color: var(--p2); }
+.tbtn svg { width: 30px; height: 30px; fill: currentColor; pointer-events: none; }
+.tbtn.on { background: var(--neon); color: #08210a; }
+.tbtn.jump { margin-left: 10px; width: 76px; }
+
+/* Screens */
+.screen {
+  position: fixed; inset: 0; z-index: 20; overflow: auto; display: flex; flex-direction: column; align-items: center;
+  padding: max(20px, env(safe-area-inset-top, 0px)) max(16px, env(safe-area-inset-right, 0px)) max(20px, env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px));
+  background:
+    radial-gradient(900px 500px at 50% -10%, rgba(120,70,255,.35), transparent 70%),
+    radial-gradient(700px 400px at 90% 110%, rgba(31,168,74,.35), transparent 70%),
+    var(--bg);
+}
+.screen > .inner { width: 100%; max-width: 820px; margin: auto; display: flex; flex-direction: column; gap: 18px; min-width: 0; }
+.logo { text-align: center; line-height: .86; font-family: var(--display); font-weight: 800; text-transform: uppercase; font-style: italic; }
+.logo .a { display: block; font-size: clamp(54px, 13vw, 112px); color: var(--ink); text-shadow: 0 0 22px rgba(47,139,255,.8); }
+.logo .b { display: block; font-size: clamp(44px, 10.5vw, 92px); color: var(--neon); text-shadow: 0 0 22px rgba(198,255,61,.65); }
+.mascots { display: flex; justify-content: center; align-items: flex-end; gap: 34px; height: 56px; }
+.sl { width: 96px; height: 48px; border-radius: 96px 96px 0 0; position: relative; }
+.sl::after { content: ""; position: absolute; top: 12px; width: 18px; height: 18px; border-radius: 50%; background: #fff; box-shadow: inset 4px 0 0 -1px #0a0f33; }
+.sl.b { background: var(--p1); box-shadow: 0 0 24px var(--p1); } .sl.b::after { right: 20px; }
+.sl.r { background: var(--p2); box-shadow: 0 0 24px var(--p2); } .sl.r::after { left: 20px; transform: scaleX(-1); }
+.tagline { text-align: center; color: var(--mute); font-size: 18px; margin: 0; }
+.menu-btns { display: grid; gap: 12px; }
+.big {
+  font-family: var(--display); font-weight: 800; font-size: 34px; letter-spacing: .05em; text-transform: uppercase; color: var(--ink);
+  background: linear-gradient(180deg, var(--panel-2), var(--panel)); border: 3px solid var(--line); border-radius: 14px; padding: 12px 20px; min-height: 68px; cursor: pointer; text-align: left;
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+}
+.big small { font-family: var(--body); font-weight: 600; font-size: 15px; letter-spacing: 0; text-transform: none; color: var(--mute); }
+.big:hover { border-color: var(--neon); transform: translateY(-1px); }
+.big.p1 { border-left: 10px solid var(--p1); } .big.p2 { border-left: 10px solid var(--p2); } .big.lg { border-left: 10px solid var(--gold); }
+.big.go { background: var(--neon); color: #08210a; border-color: var(--neon); justify-content: center; }
+.big.go:hover { background: #d9ff7a; }
+.card { background: var(--panel); border: 2px solid var(--line); border-radius: 14px; padding: 14px 16px; min-width: 0; }
+.card h3 { margin: 0 0 8px; font-family: var(--display); font-size: 22px; letter-spacing: .08em; text-transform: uppercase; color: var(--gold); }
+.howto { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.howto p, .card p { margin: 0 0 6px; color: var(--mute); font-size: 15px; line-height: 1.45; }
+kbd { font-family: var(--display); font-weight: 700; font-size: 15px; background: var(--panel-2); border: 1px solid var(--line); border-bottom-width: 3px; border-radius: 6px; padding: 1px 8px; color: var(--ink); }
+h2.sh { margin: 0; font-family: var(--display); font-weight: 800; font-size: clamp(34px, 8vw, 54px); text-transform: uppercase; letter-spacing: .04em; text-align: center; }
+.who { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.who .card.p1 { border-color: var(--p1); } .who .card.p2 { border-color: var(--p2); }
+.who h3 { color: var(--ink); } .who .p1 h3 { color: var(--p1); } .who .p2 h3 { color: var(--p2); }
+label.f { display: block; font-size: 14px; font-weight: 600; color: var(--mute); margin: 8px 0 4px; }
+select, input[type="text"] {
+  width: 100%; font-family: var(--body); font-size: 18px; font-weight: 600; color: var(--ink); background: #080c26; border: 2px solid var(--line); border-radius: 10px; padding: 10px 12px; min-height: 48px; min-width: 0;
+}
+select:focus, input[type="text"]:focus { border-color: var(--neon); outline: none; }
+.kitrow { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
+.kit { background: #080c26; border: 2px solid var(--line); border-radius: 10px; padding: 2px 3px; cursor: pointer; line-height: 0; }
+.kit:hover { border-color: var(--gold); }
+.kit.sel { border-color: var(--neon); box-shadow: 0 0 0 2px rgba(198,255,61,.35); }
+.kit canvas { display: block; }
+.kitname { font-family: var(--display); font-weight: 700; font-size: 20px; letter-spacing: .04em; min-height: 26px; color: var(--ink); margin-top: 6px; }
+.kitstat { font-size: 13px; color: var(--mute); min-height: 18px; margin: 0; }
+.cpu { font-family: var(--display); font-size: 40px; font-weight: 800; color: var(--p2); margin: 6px 0; }
+.opt { display: flex; align-items: center; gap: 10px; color: var(--mute); font-size: 16px; }
+.opt input { width: 22px; height: 22px; accent-color: var(--neon); }
+.msg { min-height: 22px; color: var(--gold); font-weight: 600; text-align: center; margin: 0; }
+.row { display: flex; gap: 12px; flex-wrap: wrap; }
+.row > * { flex: 1 1 160px; }
+
+/* League table */
+.tablewrap { overflow-x: auto; border-radius: 12px; border: 2px solid var(--line); background: var(--panel); }
+table.league { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; min-width: 560px; }
+.league th { font-family: var(--display); font-weight: 800; font-size: 18px; letter-spacing: .08em; color: var(--gold); background: #0a1040; padding: 10px 8px; text-align: center; border-bottom: 3px solid var(--neon); }
+.league td { padding: 10px 8px; text-align: center; font-size: 19px; font-weight: 600; border-bottom: 1px solid #1b2460; }
+.league tbody tr:nth-child(even) { background: rgba(255,255,255,.03); }
+.league th.l, .league td.l { text-align: left; }
+.league td.pos { font-family: var(--display); font-weight: 800; font-size: 22px; color: var(--mute); width: 52px; }
+.league td.name { font-family: var(--display); font-weight: 700; font-size: 23px; letter-spacing: .03em; }
+.league td.pts { font-family: var(--display); font-weight: 800; font-size: 25px; color: var(--neon); }
+.league tbody tr:nth-child(-n+3) td.pos { color: var(--ink); }
+.league tbody tr:first-child td.pos { color: var(--gold); }
+.league tbody tr:first-child { background: rgba(255,210,61,.10); }
+.empty { padding: 28px 16px; text-align: center; color: var(--mute); }
+.note { color: var(--mute); font-size: 15px; text-align: center; margin: 0; }
+
+/* End-of-match bar and kit pop-up (sit on top of the game field) */
+#endBar { position: absolute; left: 0; right: 0; bottom: 0; height: calc(56px * var(--s)); min-height: 44px; display: flex; align-items: center; justify-content: space-between; gap: calc(10px * var(--s)); padding: 0 calc(14px * var(--s)); background: rgba(5,8,30,.86); z-index: 4; }
+#endBar .sv { color: var(--mute); font-size: max(11px, calc(15px * var(--s))); font-weight: 600; min-width: 0; }
+#endBar .bt { display: flex; gap: calc(8px * var(--s)); }
+#endBar button { font-family: var(--display); font-weight: 800; font-size: max(13px, calc(20px * var(--s))); letter-spacing: .05em; text-transform: uppercase; background: var(--panel-2); color: var(--ink); border: 2px solid var(--line); border-radius: 8px; padding: 0 calc(14px * var(--s)); height: calc(38px * var(--s)); min-height: 34px; cursor: pointer; white-space: nowrap; }
+#endBar button.go { background: var(--neon); color: #08210a; border-color: var(--neon); }
+#kitPopup { position: absolute; inset: 0; background: rgba(4,6,20,.72); display: flex; align-items: center; justify-content: center; padding: calc(14px * var(--s)); z-index: 6; }
+.kcard { width: 100%; max-width: calc(620px * var(--s)); background: var(--panel); border: calc(4px * var(--s)) solid var(--gold); border-radius: calc(18px * var(--s)); padding: calc(22px * var(--s)) calc(26px * var(--s)); text-align: center; box-shadow: 0 0 44px rgba(255,210,61,.4); }
+.kcard h2 { margin: 0; font-family: var(--display); font-weight: 800; font-size: calc(46px * var(--s)); text-transform: uppercase; letter-spacing: .04em; color: var(--gold); }
+.kcard canvas { display: block; margin: calc(8px * var(--s)) auto; width: calc(240px * var(--s)); height: calc(150px * var(--s)); }
+.kcard p { margin: calc(4px * var(--s)) 0 0; font-size: calc(26px * var(--s)); font-weight: 600; }
+.kcard p.kind { color: var(--neon); font-family: var(--display); font-size: calc(22px * var(--s)); letter-spacing: .1em; text-transform: uppercase; }
+.kcard button { margin-top: calc(14px * var(--s)); font-family: var(--display); font-weight: 800; font-size: max(16px, calc(26px * var(--s))); text-transform: uppercase; letter-spacing: .05em; background: var(--neon); color: #08210a; border: 0; border-radius: calc(12px * var(--s)); padding: calc(8px * var(--s)) calc(30px * var(--s)); min-height: 40px; cursor: pointer; }
+
+@media (max-width: 640px) {
+  .who, .howto { grid-template-columns: 1fr; }
+  .big { font-size: 28px; min-height: 60px; }
+  .tbtn { width: 50px; height: 50px; } .tbtn.jump { width: 58px; margin-left: 4px; }
+  #topbar .ttl { display: none; }
+}
+@media (prefers-reduced-motion: reduce) { .big { transition: none; } .big:hover { transform: none; } }
+</style>
+
+<div id="app">
+  <div id="topbar">
+    <button class="chip" id="quitBtn" type="button">Quit match</button>
+    <span class="ttl">Slime Equations</span>
+    <button class="chip muteBtn" type="button" aria-pressed="false">Sound: On</button>
+  </div>
+  <div id="stageWrap">
+    <div id="stage">
+      <canvas id="cv" width="1200" height="700" aria-label="Slime Equations game arena"></canvas>
+      <div id="endBar" hidden>
+        <div class="sv" id="ebSave"></div>
+        <div class="bt">
+          <button id="againBtn" class="go" type="button">Play again</button>
+          <button id="changeBtn" type="button">Players</button>
+          <button id="endLeague" type="button">League</button>
+          <button id="endMenu" type="button">Menu</button>
+        </div>
+      </div>
+      <div id="kitPopup" hidden role="alert">
+        <div class="kcard">
+          <h2>You have unlocked a new kit!</h2>
+          <canvas id="kpCanvas" width="480" height="300"></canvas>
+          <p id="kpName"></p>
+          <p class="kind" id="kpKind"></p>
+          <button id="kpBtn" type="button">Let's play</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div id="touchbar">
+    <div class="pad p1" id="pad0">
+      <span class="tag">P1</span>
+      <button class="tbtn" data-p="0" data-k="l" type="button" aria-label="Player 1 left"><svg viewBox="0 0 24 24"><polygon points="17,3 5,12 17,21"/></svg></button>
+      <button class="tbtn" data-p="0" data-k="r" type="button" aria-label="Player 1 right"><svg viewBox="0 0 24 24"><polygon points="7,3 19,12 7,21"/></svg></button>
+      <button class="tbtn jump" data-p="0" data-k="j" type="button" aria-label="Player 1 jump"><svg viewBox="0 0 24 24"><polygon points="3,17 12,5 21,17"/></svg></button>
+      <button class="tbtn" data-p="0" data-k="d" type="button" aria-label="Player 1 drop or pull for a kit"><svg viewBox="0 0 24 24"><polygon points="3,7 12,19 21,7"/></svg></button>
+    </div>
+    <div class="pad p2" id="pad1">
+      <button class="tbtn" data-p="1" data-k="l" type="button" aria-label="Player 2 left"><svg viewBox="0 0 24 24"><polygon points="17,3 5,12 17,21"/></svg></button>
+      <button class="tbtn" data-p="1" data-k="r" type="button" aria-label="Player 2 right"><svg viewBox="0 0 24 24"><polygon points="7,3 19,12 7,21"/></svg></button>
+      <button class="tbtn jump" data-p="1" data-k="j" type="button" aria-label="Player 2 jump"><svg viewBox="0 0 24 24"><polygon points="3,17 12,5 21,17"/></svg></button>
+      <button class="tbtn" data-p="1" data-k="d" type="button" aria-label="Player 2 drop or pull for a kit"><svg viewBox="0 0 24 24"><polygon points="3,7 12,19 21,7"/></svg></button>
+      <span class="tag">P2</span>
+    </div>
+  </div>
+</div>
+
+<section class="screen" id="menu">
+  <div class="inner">
+    <div class="logo"><span class="a">Slime</span><span class="b">Equations</span></div>
+    <div class="mascots"><div class="sl b"></div><div class="sl r"></div></div>
+    <p class="tagline">Score a goal, then solve the equation to make it count.</p>
+    <div class="menu-btns">
+      <button class="big p1" id="btn1p" type="button">1 Player (vs AI) <small>You are Blue, CPU is Red</small></button>
+      <button class="big p2" id="btn2p" type="button">2 Player (Local) <small>Share one keyboard or iPad</small></button>
+      <button class="big lg" id="btnLeague" type="button">League Table <small>See who is top</small></button>
+    </div>
+    <div class="howto">
+      <div class="card">
+        <h3>Controls</h3>
+        <p><b>Player 1:</b> <kbd>W</kbd> jump, <kbd>A</kbd> <kbd>D</kbd> move, <kbd>S</kbd> drop fast</p>
+        <p><b>Player 2:</b> <kbd>&uarr;</kbd> jump, <kbd>&larr;</kbd> <kbd>&rarr;</kbd> move, <kbd>&darr;</kbd> drop fast</p>
+        <p>On an iPad use the on-screen buttons. In 1 Player you can also use the arrow keys.</p>
+      </div>
+      <div class="card">
+        <h3>Rules</h3>
+        <p>Knock the ball into your opponent's goal. Then jump into the bubble with the right answer to bank the point.</p>
+        <p>Get it wrong and your opponent can steal it. First to 5 points, or the most after 2 minutes. Win a match to pull for a new kit!</p>
+      </div>
+    </div>
+    <button class="chip muteBtn" type="button" aria-pressed="false" style="align-self:center">Sound: On</button>
+  </div>
+</section>
+
+<section class="screen" id="setup" hidden>
+  <div class="inner">
+    <h2 class="sh" id="setupTitle">Who is playing?</h2>
+    <div class="who" id="whoGrid">
+      <div class="card p1">
+        <h3>Player 1</h3>
+        <label class="f" for="sel0">Pick your name from the class list</label>
+        <select id="sel0"></select>
+        <label class="f" for="in0">Or type any name</label>
+        <input type="text" id="in0" list="classList" maxlength="20" autocomplete="off" placeholder="e.g. Thea B">
+        <label class="f">Your slime kit</label>
+        <div class="kitrow" id="kits0"></div>
+        <div class="kitname" id="kn0"></div>
+        <p class="kitstat" id="ks0"></p>
+      </div>
+      <div class="card p2" id="card2">
+        <h3 id="p2title">Player 2</h3>
+        <div id="p2human">
+          <label class="f" for="sel1">Pick your name from the class list</label>
+          <select id="sel1"></select>
+          <label class="f" for="in1">Or type any name</label>
+          <input type="text" id="in1" list="classList" maxlength="20" autocomplete="off" placeholder="e.g. Esme D">
+          <label class="f">Your slime kit</label>
+          <div class="kitrow" id="kits1"></div>
+          <div class="kitname" id="kn1"></div>
+          <p class="kitstat" id="ks1"></p>
+        </div>
+        <div id="p2cpu" hidden>
+          <div class="cpu">CPU</div>
+          <p>The computer plays the other slime and appears as "CPU" in the league table. It gets a random kit each match.</p>
+        </div>
+      </div>
+    </div>
+    <datalist id="classList"></datalist>
+    <label class="opt"><input type="checkbox" id="touchOpt"> Show on-screen touch buttons</label>
+    <p class="msg" id="setupMsg" role="status"></p>
+    <div class="row">
+      <button class="big go" id="startBtn" type="button">Kick off</button>
+      <button class="big" id="setupBack" type="button" style="justify-content:center">Back</button>
+    </div>
+  </div>
+</section>
+
+<section class="screen" id="league" hidden>
+  <div class="inner">
+    <h2 class="sh">League Table</h2>
+    <div class="tablewrap" id="leagueBox"></div>
+    <p class="note" id="leagueNote" role="status"></p>
+    <div class="row">
+      <button class="big" id="leagueRefresh" type="button" style="justify-content:center">Refresh</button>
+      <button class="big go" id="leagueBack" type="button">Back</button>
+    </div>
+  </div>
+</section>
+
+<script>
+const SHEET_URL = "https://script.google.com/macros/s/AKfycby6lso6FL7FTDDeHg9HX40EPq_jWkhPfLAy9QSMAABjH9DpY2bTkHh4deSUa5jPPyfR/exec";
+
+/* Class roster: First name + surname initial. */
+const CLASS_LIST = [
+  "Thea B", "Esme D", "Bailey D", "Azmaan G", "Christopher G", "Georgia H", "Elin H", "Leo H",
+  "George M", "Nixon M", "Shanaya M", "Chloe M", "Mitchell O", "Monty S", "Archie S", "Oliver T",
+  "Elise T", "Indi v", "William v", "Hudson W", "Roman W", "Oliver W", "Max W", "Caitlyn W",
+  "Jazmine W", "Michael Y", "Joshua Y"
+];
+
+/* Backup questions, only used if the random generator ever fails. Normal play uses makeQuestion() below. */
+const QUESTIONS = [
+  { level: 1, type: "mc", q: "x + 5 = 12",       answer: 7,  wrong: [17, 5],  hint: "To get x by itself, subtract 5 from both sides." },
+  { level: 2, type: "mc", q: "2x + 3 = 11",      answer: 4,  wrong: [7, 14],  hint: "Subtract 3 first, then divide by 2!" },
+  { level: 3, type: "mc", q: "2(x + 3) = 14",    answer: 4,  wrong: [10, 5],  hint: "Expand the brackets first: 2x + 6 = 14." }
+];
+
+/* Kits. start: true means everyone owns it. Colours unlock first; club and national kits are the rare pulls. */
+const KITS = [
+  { id: "blue",   name: "Blue",   cat: "colour", start: true, c1: "#2f8bff", pat: "solid" },
+  { id: "red",    name: "Red",    cat: "colour", start: true, c1: "#ff3d5a", pat: "solid" },
+  { id: "green",  name: "Green",  cat: "colour", start: true, c1: "#26c95f", pat: "solid" },
+  { id: "orange", name: "Orange", cat: "colour", start: true, c1: "#ff9a2f", pat: "solid" },
+  { id: "purple", name: "Purple", cat: "colour", start: true, c1: "#9b5cff", pat: "solid" },
+  { id: "pink",   name: "Pink",   cat: "colour", c1: "#ff6ad5", pat: "solid" },
+  { id: "teal",   name: "Teal",   cat: "colour", c1: "#18d6c4", pat: "solid" },
+  { id: "yellow", name: "Yellow", cat: "colour", c1: "#ffd23d", pat: "solid" },
+  { id: "lime",   name: "Lime",   cat: "colour", c1: "#b6f23a", pat: "solid" },
+  { id: "silver", name: "Silver", cat: "colour", c1: "#c9d2e6", pat: "solid" },
+  { id: "black",  name: "Black",  cat: "colour", c1: "#2b2f45", pat: "solid" },
+
+  { id: "real-madrid",   name: "Real Madrid",       cat: "club", c1: "#f6f6fb", c2: "#c8aa6e", pat: "hband" },
+  { id: "fc-barcelona",  name: "FC Barcelona",      cat: "club", c1: "#a50044", c2: "#004d98", pat: "stripes" },
+  { id: "man-united",    name: "Manchester United", cat: "club", c1: "#da291c", c2: "#fbe122", pat: "hband" },
+  { id: "man-city",      name: "Manchester City",   cat: "club", c1: "#6cabdd", c2: "#ffffff", pat: "hband" },
+  { id: "bayern",        name: "Bayern Munich",     cat: "club", c1: "#dc052d", c2: "#ffffff", pat: "vband" },
+  { id: "ac-milan",      name: "AC Milan",          cat: "club", c1: "#fb090b", c2: "#111111", pat: "stripes" },
+  { id: "liverpool",     name: "Liverpool",         cat: "club", c1: "#c8102e", c2: "#f6eb61", pat: "hband" },
+  { id: "juventus",      name: "Juventus",          cat: "club", c1: "#f5f5f5", c2: "#111111", pat: "stripes" },
+  { id: "inter-milan",   name: "Inter Milan",       cat: "club", c1: "#0068a8", c2: "#111111", pat: "stripes" },
+  { id: "ajax",          name: "Ajax",              cat: "club", c1: "#ffffff", c2: "#d2122e", pat: "vband" },
+  { id: "boca-juniors",  name: "Boca Juniors",      cat: "club", c1: "#0b3d91", c2: "#f7d117", pat: "hband" },
+
+  { id: "usa",           name: "USA",         cat: "nation", c1: "#f2f4ff", c2: "#1b2a6b", pat: "hband", flag: "\u{1F1FA}\u{1F1F8}" },
+  { id: "spain",         name: "Spain",       cat: "nation", c1: "#d62828", c2: "#ffc400", pat: "hband", flag: "\u{1F1EA}\u{1F1F8}" },
+  { id: "portugal",      name: "Portugal",    cat: "nation", c1: "#9c1c3a", c2: "#046a38", pat: "hband", flag: "\u{1F1F5}\u{1F1F9}" },
+  { id: "france",        name: "France",      cat: "nation", c1: "#1f3a93", c2: "#ffffff", pat: "hband", flag: "\u{1F1EB}\u{1F1F7}" },
+  { id: "argentina",     name: "Argentina",   cat: "nation", c1: "#74acdf", c2: "#ffffff", pat: "stripes", flag: "\u{1F1E6}\u{1F1F7}" },
+  { id: "belgium",       name: "Belgium",     cat: "nation", c1: "#d71920", c2: "#111111", pat: "hband", flag: "\u{1F1E7}\u{1F1EA}" },
+  { id: "netherlands",   name: "Netherlands", cat: "nation", c1: "#ff7f00", c2: "#ffffff", pat: "hband", flag: "\u{1F1F3}\u{1F1F1}" },
+  { id: "australia",     name: "Australia",   cat: "nation", c1: "#ffcd00", c2: "#00843d", pat: "hband", flag: "\u{1F1E6}\u{1F1FA}" },
+  { id: "morocco",       name: "Morocco",     cat: "nation", c1: "#c1272d", c2: "#006233", pat: "hband", flag: "\u{1F1F2}\u{1F1E6}" },
+  { id: "brazil",        name: "Brazil",      cat: "nation", c1: "#ffdf00", c2: "#009c3b", pat: "hband", flag: "\u{1F1E7}\u{1F1F7}" },
+  { id: "england",       name: "England",     cat: "nation", c1: "#ffffff", c2: "#cf081f", pat: "hband", flag: "\u{1F3F4}\u{E0067}\u{E0062}\u{E0065}\u{E006E}\u{E0067}\u{E007F}" },
+  { id: "new-zealand",   name: "New Zealand", cat: "nation", c1: "#14161f", c2: "#ffffff", pat: "hband", flag: "\u{1F1F3}\u{1F1FF}" }
+];
+const KIT_BY_ID = {};
+KITS.forEach((k) => { KIT_BY_ID[k.id] = k; });
+const STARTERS = KITS.filter((k) => k.start);
+
+/* ---------- Constants ---------- */
+const W = 1200, H = 700, GROUND = 640, CEIL = 130;
+const GOAL_W = 70, GOAL_H = 120, BAR_Y = GROUND - GOAL_H, BAR_T = 10;
+const SR = 42, BR = 18;                       // slime radius, ball radius
+const GRAV_S = 0.5, JUMP_V = 12, SPEED = 5.6, AI_SPEED = 4.8, FAST_FALL = 0.9;
+const GRAV_B = 0.2, REST_WALL = 0.85, REST_FLOOR = 0.75, REST_BAR = 0.8, ROLL_FRICTION = 0.99;
+const MIN_BOUNCE = 3.4;                       // the ball always keeps a small bounce on the floor
+const MAX_BALL_V = 14;                        // always below one ball radius per frame
+const MIN_HIT = 6;
+const SLIME_MIN = GOAL_W + SR * 0.5, SLIME_MAX = W - GOAL_W - SR * 0.5;
+const WIN_POINTS = 5, MATCH_SECONDS = 120, COUNTDOWN_FRAMES = 180, REVEAL_PAUSE = 170, FAIL_PAUSE = 230;
+const OWN_GOAL_FRAMES = 60;                   // a goal does not count if the defender touched the ball in the last second
+const CPU_THINK_FRAMES = 210;                 // about 3.5 seconds
+const CPU_ACCURACY = 0.75;
+const BUBBLE_Y = GROUND - 170, BUBBLE_R = 40;
+const SUBSTEPS = 2;
+const STEP_MS = 1000 / 60;
+
+const $ = (id) => document.getElementById(id);
+const cv = $("cv"), ctx = cv.getContext("2d");
+
+/* ---------- Safe storage ---------- */
+function lsGet(k) { try { return window.localStorage.getItem(k); } catch (e) { return null; } }
+function lsSet(k, v) { try { window.localStorage.setItem(k, v); } catch (e) { /* storage unavailable */ } }
+const RESULTS_KEY = "slimeEq.results", MUTE_KEY = "slimeEq.mute", NAMES_KEY = "slimeEq.names", KITS_KEY = "slimeEq.kits", SEL_KEY = "slimeEq.kitSel";
+
+/* ---------- Sound (Web Audio) ---------- */
+let AC = null, muted = lsGet(MUTE_KEY) === "1";
+function audio() {
+  if (!AC) { try { AC = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { AC = null; } }
+  if (AC && AC.state === "suspended") { try { AC.resume(); } catch (e) { /* ignore */ } }
+  return AC;
+}
+function tone(o) {
+  if (muted || !AC) return;
+  const t0 = AC.currentTime + (o.delay || 0), dur = o.dur;
+  const osc = AC.createOscillator(), g = AC.createGain();
+  osc.type = o.type || "sine";
+  osc.frequency.setValueAtTime(o.f0, t0);
+  if (o.f1) osc.frequency.exponentialRampToValueAtTime(o.f1, t0 + dur);
+  g.gain.setValueAtTime(0.0001, t0);
+  g.gain.exponentialRampToValueAtTime(o.vol, t0 + 0.012);
+  g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+  let tail = osc;
+  if (o.lp) { const f = AC.createBiquadFilter(); f.type = "lowpass"; f.frequency.value = o.lp; osc.connect(f); tail = f; }
+  tail.connect(g); g.connect(AC.destination);
+  osc.start(t0); osc.stop(t0 + dur + 0.05);
+  if (o.vib) {
+    const lfo = AC.createOscillator(), lg = AC.createGain();
+    lfo.frequency.value = o.vib; lg.gain.value = o.f0 * 0.03;
+    lfo.connect(lg); lg.connect(osc.frequency); lfo.start(t0); lfo.stop(t0 + dur + 0.05);
+  }
+}
+const sfx = {
+  thud(strength) { tone({ type: "sine", f0: 170, f1: 55, dur: 0.14, vol: 0.1 + 0.25 * strength }); },
+  kick(strength) { tone({ type: "triangle", f0: 240, f1: 80, dur: 0.12, vol: 0.16 + 0.22 * strength }); },
+  whistle(n, len) {
+    n = n || 1; len = len || 0.3;
+    for (let i = 0; i < n; i++) tone({ type: "sine", f0: 2900, dur: len, vol: 0.16, vib: 32, delay: i * (len + 0.12) });
+  },
+  buzzer() { tone({ type: "sawtooth", f0: 130, f1: 85, dur: 0.5, vol: 0.2, lp: 900 }); },
+  beep(hi) { tone({ type: "square", f0: hi ? 880 : 520, dur: 0.16, vol: 0.1 }); },
+  tick() { tone({ type: "triangle", f0: 950, dur: 0.04, vol: 0.12 }); },
+  ding() { tone({ type: "sine", f0: 660, dur: 0.18, vol: 0.2 }); tone({ type: "sine", f0: 990, dur: 0.3, vol: 0.2, delay: 0.12 }); },
+  unlock() { [523, 659, 784, 1047].forEach((f, i) => tone({ type: "triangle", f0: f, dur: 0.3, vol: 0.2, delay: i * 0.11 })); }
+};
+function refreshMuteButtons() {
+  document.querySelectorAll(".muteBtn").forEach((b) => { b.textContent = muted ? "Sound: Off" : "Sound: On"; b.setAttribute("aria-pressed", muted ? "true" : "false"); });
+}
+document.querySelectorAll(".muteBtn").forEach((b) => b.addEventListener("click", () => {
+  muted = !muted; lsSet(MUTE_KEY, muted ? "1" : "0"); audio(); refreshMuteButtons();
+}));
+refreshMuteButtons();
+
+/* ---------- Maths: random Year 8 linear equations ---------- */
+function evalSide(str, x) {
+  let i = 0;
+  const peek = () => str[i];
+  function atom() {
+    const c = peek();
+    if (c === "(") { i++; const v = expr(); if (peek() !== ")") throw new Error("paren"); i++; return v; }
+    if (c === "x") { i++; return x; }
+    const m = /^\d+(\.\d+)?/.exec(str.slice(i));
+    if (!m) throw new Error("num");
+    i += m[0].length; return parseFloat(m[0]);
+  }
+  function factor() { if (peek() === "-") { i++; return -factor(); } if (peek() === "+") { i++; return factor(); } return atom(); }
+  function mul() {
+    let v = factor();
+    for (;;) {
+      const c = peek();
+      if (c === "*") { i++; v *= factor(); }
+      else if (c === "/") { i++; v /= factor(); }
+      else if (c === "x" || c === "(") { v *= atom(); }
+      else break;
+    }
+    return v;
+  }
+  function expr() {
+    let v = mul();
+    for (;;) {
+      const c = peek();
+      if (c === "+") { i++; v += mul(); }
+      else if (c === "-") { i++; v -= mul(); }
+      else break;
+    }
+    return v;
+  }
+  const v = expr();
+  if (i !== str.length) throw new Error("trailing");
+  return v;
+}
+function sidesAt(q, x) {
+  const parts = q.replace(/\s+/g, "").split("=");
+  if (parts.length !== 2) throw new Error("eq");
+  return [evalSide(parts[0], x), evalSide(parts[1], x)];
+}
+const fmtNum = (n) => String(Math.round(n * 100) / 100).replace("-", "−");
+const fmtEq = (q) => String(q).replace(/-/g, "−").replace(/\//g, "÷");
+const ri = (a, b) => a + Math.floor(Math.random() * (b - a + 1));
+const sg = (n) => (n < 0 ? "- " + (-n) : "+ " + n);
+
+/* Each template returns { q, answer, bad: [common mistakes], work }. */
+const TEMPLATES = {
+  t1a() { const s = ri(2, 15), a = ri(2, 12); return { q: `x + ${a} = ${s + a}`, answer: s, bad: [s + 2 * a, a], work: `x = ${s + a} - ${a} = ${s}` }; },
+  t1b() { const b = ri(2, 12), a = ri(2, 12), s = a + b; return { q: `x - ${a} = ${b}`, answer: s, bad: [b - a, a], work: `x = ${b} + ${a} = ${s}` }; },
+  t1c() { const a = ri(2, 9), s = ri(2, 12); return { q: `${a}x = ${a * s}`, answer: s, bad: [a * s - a, s + a], work: `x = ${a * s} / ${a} = ${s}` }; },
+  t1d() { const a = ri(2, 6), b = ri(2, 10), s = a * b; return { q: `x / ${a} = ${b}`, answer: s, bad: [a + b, s + a], work: `x = ${b} × ${a} = ${s}` }; },
+  t2a() { const a = ri(2, 6), s = ri(2, 12), b = ri(2, 15), c = a * s + b; return { q: `${a}x + ${b} = ${c}`, answer: s, bad: [c - b, s + b], work: `${a}x = ${c} - ${b} = ${c - b}, so x = ${c - b} / ${a} = ${s}` }; },
+  t2b() { const a = ri(2, 6), s = ri(3, 12), b = ri(2, 12), c = a * s - b; if (c < 1) return null; return { q: `${a}x - ${b} = ${c}`, answer: s, bad: [c + b, s - b], work: `${a}x = ${c} + ${b} = ${c + b}, so x = ${c + b} / ${a} = ${s}` }; },
+  t2c() { const a = ri(2, 6), k = ri(2, 9), b = ri(2, 10), s = a * k, c = k + b; return { q: `x / ${a} + ${b} = ${c}`, answer: s, bad: [k, s + b], work: `x / ${a} = ${c} - ${b} = ${k}, so x = ${k} × ${a} = ${s}` }; },
+  t3a() { const a = ri(2, 6), b = ri(1, 9), s = ri(2, 12), c = a * (s + b); return { q: `${a}(x + ${b}) = ${c}`, answer: s, bad: [s + b, s + 2 * b], work: `${c} / ${a} = ${s + b}, so x + ${b} = ${s + b} and x = ${s}` }; },
+  t3b() { const a = ri(2, 6), b = ri(1, 9), s = b + ri(1, 10), c = a * (s - b); return { q: `${a}(x - ${b}) = ${c}`, answer: s, bad: [s - b, s + 2 * b], work: `${c} / ${a} = ${s - b}, so x - ${b} = ${s - b} and x = ${s}` }; },
+  t3c() { const a = ri(2, 5), s = ri(2, 10), c = ri(-6, 6), b = a * s + c; return { q: `-${a}x + ${b} = ${c}`, answer: s, bad: [-s, c - b], work: `-${a}x = ${c} - ${b} = ${c - b}, so x = ${c - b} / -${a} = ${s}` }; },
+  t4() {
+    const c = ri(1, 4), k = ri(2, 5), a = c + k, s = ri(1, 12), b = ri(-8, 8);
+    const d = b + k * s;
+    if (b === 0 || d === 0) return null;
+    return { q: `${a}x ${sg(b)} = ${c === 1 ? "" : c}x ${sg(d)}`, answer: s, bad: [d - b, d + b], work: `Take ${c === 1 ? "" : c}x from both sides: ${k}x ${sg(b)} = ${d}, so ${k}x = ${d - b} and x = ${s}` };
+  },
+  t5a() {
+    const a = ri(2, 5), b = ri(1, 6), s = ri(2, 10), c = ri(1, 9) * (Math.random() < 0.5 ? -1 : 1), d = a * (s + b) + c;
+    if (d < 1) return null;
+    return { q: `${a}(x + ${b}) ${sg(c)} = ${d}`, answer: s, bad: [s + b, d - c], work: `${a}(x + ${b}) = ${d - c}, so x + ${b} = ${s + b} and x = ${s}` };
+  },
+  t5b() {
+    const a = ri(3, 5), b = ri(1, 6), s = b + ri(2, 9), d = a * (s - b) - s;
+    if (d === 0) return null;
+    return { q: `${a}(x - ${b}) = x ${sg(d)}`, answer: s, bad: [d + a * b, s + b], work: `${a}x - ${a * b} = x ${sg(d)}, so ${a - 1}x = ${d + a * b} and x = ${s}` };
+  }
+};
+const LEVEL_POOLS = {
+  1: ["t1a", "t1b", "t1c", "t1d"],
+  2: ["t2a", "t2b", "t2c"],
+  3: ["t3a", "t3b", "t3c"],
+  4: ["t4", "t3c", "t3b"],
+  5: ["t5a", "t5b", "t4"]
+};
+function levelFor(totalPoints) { return Math.max(1, Math.min(5, 1 + Math.floor(totalPoints / 2))); }
+
+function shuffle(a) { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); const t = a[i]; a[i] = a[j]; a[j] = t; } return a; }
+
+function checkQuestion(t) {
+  try {
+    const ok = sidesAt(t.q, t.answer);
+    if (Math.abs(ok[0] - ok[1]) > 1e-9) return false;
+    return true;
+  } catch (e) { return false; }
+}
+
+function makeQuestion(level, seen) {
+  const pool = LEVEL_POOLS[level] || LEVEL_POOLS[1];
+  for (let tries = 0; tries < 40; tries++) {
+    const t = TEMPLATES[pool[Math.floor(Math.random() * pool.length)]]();
+    if (!t || !checkQuestion(t)) continue;
+    if (seen && seen[t.q] && tries < 30) continue;
+    const opts = [t.answer];
+    t.bad.forEach((v) => { if (opts.indexOf(v) < 0 && opts.length < 3) opts.push(v); });
+    let guard = 0;
+    while (opts.length < 3 && guard++ < 50) {
+      const v = t.answer + ri(1, 6) * (Math.random() < 0.5 ? -1 : 1);
+      if (opts.indexOf(v) < 0) opts.push(v);
+    }
+    if (opts.length < 3) continue;
+    t.options = shuffle(opts);
+    t.level = level;
+    if (seen) seen[t.q] = true;
+    return t;
+  }
+  const f = QUESTIONS[Math.floor(Math.random() * QUESTIONS.length)];
+  return { q: f.q, answer: f.answer, work: f.hint, level: level, options: shuffle([f.answer].concat(f.wrong.slice(0, 2))) };
+}
+
+/* ---------- Kit storage ---------- */
+const nameKey = (n) => String(n || "").replace(/\s+/g, " ").trim().toLowerCase();
+function loadStore(key) { try { const o = JSON.parse(lsGet(key) || "{}"); return o && typeof o === "object" ? o : {}; } catch (e) { return {}; } }
+function ownedIds(name) { const a = loadStore(KITS_KEY)[nameKey(name)]; return Array.isArray(a) ? a.filter((id) => KIT_BY_ID[id]) : []; }
+function addOwned(name, id) {
+  const k = nameKey(name); if (!k || !KIT_BY_ID[id]) return;
+  const s = loadStore(KITS_KEY), arr = Array.isArray(s[k]) ? s[k] : [];
+  if (arr.indexOf(id) < 0) arr.push(id);
+  s[k] = arr; lsSet(KITS_KEY, JSON.stringify(s));
+}
+function availableKits(name) {
+  const set = {}; STARTERS.forEach((k) => { set[k.id] = 1; }); ownedIds(name).forEach((id) => { set[id] = 1; });
+  return KITS.filter((k) => set[k.id]);
+}
+function selectedKitId(name, fallback) {
+  const id = loadStore(SEL_KEY)[nameKey(name)];
+  const ok = id && availableKits(name).some((k) => k.id === id);
+  return ok ? id : fallback;
+}
+function saveSelection(name, id) { const k = nameKey(name); if (!k) return; const s = loadStore(SEL_KEY); s[k] = id; lsSet(SEL_KEY, JSON.stringify(s)); }
+function rollKit(name) {
+  const owned = {}; availableKits(name).forEach((k) => { owned[k.id] = 1; });
+  const colours = KITS.filter((k) => k.cat === "colour" && !owned[k.id]);
+  const teams = KITS.filter((k) => k.cat !== "colour" && !owned[k.id]);
+  if (!colours.length && !teams.length) return null;
+  let pool;
+  if (colours.length && teams.length) pool = Math.random() < 0.7 ? colours : teams; else pool = colours.length ? colours : teams;
+  return pool[Math.floor(Math.random() * pool.length)];
+}
+
+/* ---------- Kit drawing (used on the field and for the small icons) ---------- */
+const EMOJI_FONT = '"Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif';
+const FONT_D = '"Barlow Condensed", "Arial Narrow", Arial, sans-serif';
+function lum(hex) { const n = parseInt(hex.slice(1), 16); return 0.299 * (n >> 16) + 0.587 * ((n >> 8) & 255) + 0.114 * (n & 255); }
+function hudCol(k) { return lum(k.c1) < 70 ? (k.c2 && lum(k.c2) >= 70 ? k.c2 : "#c9d2e6") : k.c1; }
+
+function drawSlimeBody(c, x, y, r, kit, look, glow) {
+  c.save();
+  if (glow) { c.shadowColor = hudCol(kit); c.shadowBlur = r * 0.45; }
+  c.beginPath(); c.arc(x, y, r, Math.PI, 0); c.closePath();
+  c.fillStyle = kit.c1; c.fill();
+  c.shadowBlur = 0;
+  c.save(); c.clip();
+  if (kit.pat === "stripes") {
+    const w = r * 0.3; c.fillStyle = kit.c2;
+    for (let i = -6; i <= 6; i++) if (Math.abs(i) % 2 === 1) c.fillRect(x + i * w - w / 2, y - r, w, r);
+  } else if (kit.pat === "hband") {
+    c.fillStyle = kit.c2; c.fillRect(x - r, y - r * 0.5, r * 2, r * 0.2);
+  } else if (kit.pat === "vband") {
+    c.fillStyle = kit.c2; c.fillRect(x - r * 0.17, y - r, r * 0.34, r);
+  }
+  const hl = c.createRadialGradient(x - r * 0.3, y - r * 0.6, r * 0.05, x, y - r * 0.2, r);
+  hl.addColorStop(0, "rgba(255,255,255,.45)"); hl.addColorStop(0.5, "rgba(255,255,255,0)"); hl.addColorStop(1, "rgba(0,0,0,.22)");
+  c.fillStyle = hl; c.fillRect(x - r, y - r, r * 2, r);
+  c.restore();
+  c.strokeStyle = "rgba(255,255,255,.75)"; c.lineWidth = Math.max(1.2, r * 0.045);
+  c.beginPath(); c.arc(x, y, r, Math.PI, 0); c.stroke();
+  if (kit.flag) {
+    c.font = Math.round(r * 0.5) + "px " + EMOJI_FONT; c.textAlign = "center"; c.textBaseline = "middle";
+    c.fillStyle = "#fff"; c.fillText(kit.flag, x, y - r * 0.2);
+  }
+  // two eyes that follow a target
+  const ex = [x - r * 0.3, x + r * 0.3], ey = y - r * 0.64, er = r * 0.2;
+  for (let e = 0; e < 2; e++) {
+    c.fillStyle = "#fff"; c.beginPath(); c.arc(ex[e], ey, er, 0, Math.PI * 2); c.fill();
+    let ax = look && look.fx != null ? look.fx : 0, ay = 0;
+    if (look && look.tx != null) { const dx = look.tx - ex[e], dy = look.ty - ey, d = Math.hypot(dx, dy) || 1; ax = dx / d; ay = dy / d; }
+    c.fillStyle = "#0a0f33"; c.beginPath(); c.arc(ex[e] + ax * er * 0.45, ey + ay * er * 0.45, er * 0.55, 0, Math.PI * 2); c.fill();
+  }
+  c.restore();
+}
+
+function kitIcon(kit, w, h) {
+  const cvs = document.createElement("canvas"), dpr = Math.min(window.devicePixelRatio || 1, 2);
+  cvs.width = Math.round(w * dpr); cvs.height = Math.round(h * dpr); cvs.style.width = w + "px"; cvs.style.height = h + "px";
+  const c = cvs.getContext("2d"); c.setTransform(dpr, 0, 0, dpr, 0, 0);
+  drawSlimeBody(c, w / 2, h - 4, Math.min(w / 2 - 3, h - 8), kit, { fx: 0.6 }, false);
+  return cvs;
+}
+
+/* ---------- Game state ---------- */
+const G = {
+  state: "menu", mode: 1, names: ["Player 1", "Player 2"], kits: [KIT_BY_ID.blue, KIT_BY_ID.red],
+  score: [0, 0], timeLeft: MATCH_SECONDS, ball: null, slimes: [], particles: [], q: null, level: 1, seen: {},
+  count: 0, pause: 0, ans: null, msg: "", lastTouch: -1, lastTouchFrame: -999, frame: 0,
+  ending: false, endTimer: 0, endReason: "", saveStatus: "", pull: null, slot: null, working: "", aiT: 0, aiErr: 0, winner: -1
+};
+const keys = {};
+const touch = [{ l: false, r: false, j: false, d: false }, { l: false, r: false, j: false, d: false }];
+const prevPull = [false, false];
+const rand = (a, b) => a + Math.random() * (b - a);
+const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+function pName(i) { return i === 1 && G.mode === 1 ? "CPU" : G.names[i]; }
+function kitOf(i) { return G.slot && G.slot.i === i ? KIT_BY_ID[G.slot.ids[G.slot.idx]] : G.kits[i]; }
+const IDLE = { l: false, r: false, j: false, d: false };
+
+function makeSlime(i) { return { x: i === 0 ? W * 0.25 : W * 0.75, y: GROUND, vx: 0, vy: 0, onGround: true }; }
+function makeBall() { return { x: W / 2, y: CEIL + BR + 70, vx: 0, vy: 0, ang: 0, hitCd: 0, onGround: false, gone: false, live: false }; }
+
+function assignKits() {
+  const k0 = KIT_BY_ID[selectedKitId(G.names[0], "blue")];
+  let k1;
+  if (G.mode === 1) {
+    const pool = KITS.filter((k) => k.id !== k0.id);
+    k1 = pool[Math.floor(Math.random() * pool.length)];
+  } else {
+    k1 = KIT_BY_ID[selectedKitId(G.names[1], "red")];
+    if (k1.id === k0.id) { const alt = availableKits(G.names[1]).filter((k) => k.id !== k0.id); k1 = alt[0] || k1; }
+  }
+  G.kits = [k0, k1];
+}
+
+function startCountdown() {
+  G.level = levelFor(G.score[0] + G.score[1]);
+  G.slimes = [makeSlime(0), makeSlime(1)];
+  G.ball = makeBall();
+  G.lastTouch = -1; G.lastTouchFrame = -999;
+  G.ans = null; G.msg = ""; G.working = "";
+  G.count = COUNTDOWN_FRAMES; G.state = "countdown";
+  sfx.beep(false);
+}
+
+function startMatch() {
+  audio();
+  G.score = [0, 0]; G.timeLeft = MATCH_SECONDS; G.seen = {}; G.particles = []; G.ending = false; G.endTimer = 0;
+  G.pull = null; G.slot = null; G.q = null;
+  assignKits();
+  showScreen(null);
+  $("endBar").hidden = true; $("kitPopup").hidden = true;
+  $("quitBtn").hidden = false;
+  touch.forEach((t) => { t.l = t.r = t.j = t.d = false; });
+  $("pad1").hidden = G.mode === 1;
+  fitStage();
+  startCountdown();
+}
+
+/* ---------- Input ---------- */
+const GAME_KEYS = ["KeyW", "KeyA", "KeyD", "KeyS", "ArrowUp", "ArrowLeft", "ArrowRight", "ArrowDown", "Space"];
+window.addEventListener("keydown", (e) => {
+  if (G.state === "menu") return;
+  if (GAME_KEYS.indexOf(e.code) >= 0) { e.preventDefault(); keys[e.code] = true; }
+});
+window.addEventListener("keyup", (e) => { if (GAME_KEYS.indexOf(e.code) >= 0) keys[e.code] = false; });
+window.addEventListener("blur", () => { for (const k in keys) keys[k] = false; });
+
+function humanInput(i) {
+  const t = touch[i];
+  if (i === 0) {
+    const ar = G.mode === 1;
+    return { l: !!(keys.KeyA || t.l || (ar && keys.ArrowLeft)), r: !!(keys.KeyD || t.r || (ar && keys.ArrowRight)), j: !!(keys.KeyW || t.j || (ar && keys.ArrowUp)), d: !!(keys.KeyS || t.d || (ar && keys.ArrowDown)) };
+  }
+  return { l: !!(keys.ArrowLeft || t.l), r: !!(keys.ArrowRight || t.r), j: !!(keys.ArrowUp || t.j), d: !!(keys.ArrowDown || t.d) };
+}
+
+/* CPU in open play: get behind the ball and hit it towards the left goal. */
+function aiPlayInput() {
+  const s = G.slimes[1], b = G.ball, out = { l: false, r: false, j: false, d: false };
+  if (!b || b.gone || !b.live) return out;
+  if (--G.aiT <= 0) { G.aiT = Math.floor(rand(15, 35)); G.aiErr = rand(-24, 24); }
+  const pred = b.x + b.vx * 6;
+  const behind = b.x > s.x - 4;                        // ball is on the CPU's own-goal side
+  const target = clamp(pred + 34 + (G.aiErr || 0), SLIME_MIN, SLIME_MAX);
+  const dx = target - s.x;
+  if (dx < -8) out.l = true; else if (dx > 8) out.r = true;
+  const near = Math.abs(b.x - s.x) < SR + BR + 24;
+  if (behind && b.y > GROUND - 70 && Math.abs(b.x - s.x) < 90 && s.onGround) out.j = true;     // hop over a low ball instead of pushing it into its own goal
+  else if (!behind && near && s.onGround && b.y < s.y - 30 && b.vy > -2) out.j = true;
+  if (!s.onGround && s.y < GROUND - 60 && b.y > s.y) out.d = Math.random() < 0.03;
+  return out;
+}
+
+/* CPU while answering: think (first answer only), then walk to the bubble and jump into it. */
+function cpuAnswerInput() {
+  const a = G.ans, s = G.slimes[1], out = { l: false, r: false, j: false, d: false };
+  if (a.grace > 0) return out;
+  if (a.think > 0) { a.think--; return out; }
+  if (!a.cpu) {
+    const avail = a.options.filter((o) => o.st === "idle");
+    const right = avail.filter((o) => o.v === G.q.answer)[0];
+    const wrong = avail.filter((o) => o !== right);
+    a.cpu = (Math.random() < CPU_ACCURACY || !wrong.length) ? right : wrong[Math.floor(Math.random() * wrong.length)];
+    if (!a.cpu) a.cpu = avail[0];
+  }
+  const dx = a.cpu.x - s.x;
+  if (dx < -6) out.l = true; else if (dx > 6) out.r = true;
+  if (Math.abs(dx) < 36 && s.onGround) out.j = true;
+  return out;
+}
+
+/* ---------- Physics ---------- */
+function capBall(b) {
+  b.vx = clamp(b.vx, -MAX_BALL_V, MAX_BALL_V);
+  b.vy = clamp(b.vy, -MAX_BALL_V, MAX_BALL_V);
+  const sp = Math.hypot(b.vx, b.vy);
+  if (sp > MAX_BALL_V) { b.vx *= MAX_BALL_V / sp; b.vy *= MAX_BALL_V / sp; }
+}
+function impact(b, speed) { if (speed > 5 && b.hitCd <= 0) { sfx.thud(Math.min(1, speed / 14)); b.hitCd = 8; } }
+
+function collideBar(b, x0, x1, side) {
+  const y0 = BAR_Y, y1 = BAR_Y + BAR_T;
+  const cx = clamp(b.x, x0, x1);
+  let cy = clamp(b.y, y0, y1);
+  const dx = b.x - cx, dy = b.y - cy;
+  const d = Math.hypot(dx, dy);
+  if (d >= BR) return;
+  let nx, ny;
+  if (d > 0.0001) { nx = dx / d; ny = dy / d; b.x = cx + nx * BR; b.y = cy + ny * BR; }
+  else {
+    const dTop = b.y - y0, dBot = y1 - b.y;
+    if (dTop <= dBot) { nx = 0; ny = -1; b.y = y0 - BR; } else { nx = 0; ny = 1; b.y = y1 + BR; }
+  }
+  const vn = b.vx * nx + b.vy * ny;
+  if (vn < 0) {
+    impact(b, -vn);
+    b.vx -= (1 + REST_BAR) * vn * nx;
+    b.vy -= (1 + REST_BAR) * vn * ny;
+  }
+  if (ny < -0.5) b.vx += (side === 0 ? 1 : -1) * 0.25;   // roll off the top of the crossbar
+}
+
+function collideSlimes(b) {
+  for (let i = 0; i < 2; i++) {
+    const s = G.slimes[i];
+    const dx = b.x - s.x, dy = b.y - s.y;
+    const dist = Math.hypot(dx, dy);
+    if (dist < SR + BR && b.y <= s.y) {
+      const ang = Math.atan2(dy, dx), nx = Math.cos(ang), ny = Math.sin(ang);
+      b.x = s.x + nx * (SR + BR + 0.5);
+      b.y = s.y + ny * (SR + BR + 0.5);
+      const vn = (b.vx - s.vx) * nx + (b.vy - s.vy) * ny;
+      if (vn < 0) {
+        const speed = Math.max(MIN_HIT, Math.hypot(b.vx, b.vy) * 0.7);
+        b.vx = nx * speed + s.vx * 0.5;
+        b.vy = ny * speed + s.vy * 0.5;
+        G.lastTouch = i; G.lastTouchFrame = G.frame;
+        if (b.hitCd <= 0) { sfx.kick(Math.min(1, speed / 14)); b.hitCd = 8; }
+      }
+    }
+  }
+}
+
+function stepBall(b) {
+  b.vy += GRAV_B / SUBSTEPS;
+  b.x += b.vx / SUBSTEPS; b.y += b.vy / SUBSTEPS;
+  b.onGround = false;
+  if (b.x < BR) { b.x = BR; if (b.vx < 0) { impact(b, -b.vx); b.vx = -b.vx * REST_WALL; } }
+  if (b.x > W - BR) { b.x = W - BR; if (b.vx > 0) { impact(b, b.vx); b.vx = -b.vx * REST_WALL; } }
+  if (b.y < CEIL + BR) { b.y = CEIL + BR; if (b.vy < 0) { impact(b, -b.vy); b.vy = -b.vy * REST_WALL; } }
+  if (b.y > GROUND - BR) {
+    b.y = GROUND - BR;
+    if (b.vy > 0) { impact(b, b.vy); b.vy = -Math.max(b.vy * REST_FLOOR, MIN_BOUNCE); }   // never comes to rest
+    b.onGround = true;
+  }
+  if (b.onGround) b.vx *= Math.pow(ROLL_FRICTION, 1 / SUBSTEPS);
+  collideBar(b, 0, GOAL_W, 0);
+  collideBar(b, W - GOAL_W, W, 1);
+  collideSlimes(b);
+  capBall(b);
+  b.x = clamp(b.x, BR, W - BR);
+  b.y = clamp(b.y, CEIL + BR, GROUND - BR);
+}
+
+function updateSlime(i, inp) {
+  const s = G.slimes[i];
+  const sp = (i === 1 && G.mode === 1) ? AI_SPEED : SPEED;
+  s.vx = ((inp.r ? 1 : 0) - (inp.l ? 1 : 0)) * sp;
+  s.x = clamp(s.x + s.vx, SLIME_MIN, SLIME_MAX);
+  if (inp.j && s.onGround) { s.vy = -JUMP_V; s.onGround = false; }
+  s.vy += GRAV_S + (inp.d && !s.onGround ? FAST_FALL : 0);
+  s.vy = Math.min(s.vy, 17);
+  s.y += s.vy;
+  if (s.y >= GROUND) { s.y = GROUND; s.vy = 0; s.onGround = true; }
+}
+
+function goalSide(b) {
+  if (b.y > BAR_Y + BAR_T) {
+    if (b.x < GOAL_W - BR) return "L";
+    if (b.x > W - GOAL_W + BR) return "R";
+  }
+  return null;
+}
+
+function burst(x, y, colours, n, power, size, life) {
+  for (let i = 0; i < n; i++) {
+    const a = rand(0, Math.PI * 2), sp = rand(1, power);
+    G.particles.push({ x: x, y: y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - 2, life: rand(life * 0.6, life), max: life, c: colours[i % colours.length], r: rand(size * 0.6, size), g: 0.16 });
+  }
+}
+function confettiOn(i) {
+  const s = G.slimes[i], k = kitOf(i);
+  burst(s.x, s.y - SR * 0.8, [k.c1, k.c2 || "#ffffff", "#ffd23d", "#ffffff"], 38, 4.2, 3.6, 60);
+}
+
+/* ---------- Goal, answer and steal flow ---------- */
+function handleGoal(b, side) {
+  b.gone = true;
+  const defender = side === "L" ? 0 : 1;
+  const attacker = 1 - defender;
+  burst(b.x, b.y, ["#ffffff", "#ffd23d"], 20, 5, 3, 40);
+  sfx.whistle(2, 0.22);
+  const q = makeQuestion(levelFor(G.score[0] + G.score[1]), G.seen);
+  G.q = q; G.level = q.level;
+  const xs = [W * 0.22, W * 0.5, W * 0.78];
+  const options = q.options.map((v, n) => ({ v: v, x: xs[n], y: BUBBLE_Y, r: BUBBLE_R, st: "idle", age: -n * 6 }));
+  G.ans = { attacker: attacker, turn: attacker, phase: "first", grace: 50, timer: 20 * 60, think: (attacker === 1 && G.mode === 1) ? CPU_THINK_FRAMES : 0, cpu: null, options: options, result: null };
+  G.working = "";
+  G.msg = pName(attacker) + ": jump into the right answer!";
+  G.state = "answer";
+}
+
+function endReveal(result, text, pause) {
+  const a = G.ans;
+  a.result = result;
+  a.options.forEach((o) => { if (o.v === G.q.answer && o.st === "idle") o.st = "show"; });
+  G.working = fmtEq(G.q.q) + "   →   " + fmtEq(G.q.work);
+  G.msg = text; G.pause = pause; G.state = "reveal";
+}
+
+function pickOption(opt) {
+  const a = G.ans, i = a.turn;
+  if (opt.v === G.q.answer) {
+    opt.st = "correct"; G.score[i]++;
+    confettiOn(i); sfx.ding();
+    endReveal("correct", a.phase === "first" ? "Correct! +1 point for " + pName(i) : "Great steal! +1 point for " + pName(i), REVEAL_PAUSE);
+  } else {
+    opt.st = "wrong"; sfx.buzzer();
+    failTurn();
+  }
+}
+
+function failTurn() {
+  const a = G.ans;
+  if (a.phase === "first") {
+    a.phase = "steal"; a.turn = 1 - a.attacker; a.grace = 40; a.timer = 20 * 60; a.think = 0; a.cpu = null;
+    G.msg = pName(a.turn) + " can steal it! Jump into the right answer!";
+  } else {
+    endReveal("fail", "Nobody got it, so no point this time. The answer was " + fmtNum(G.q.answer) + ".", FAIL_PAUSE);
+  }
+}
+
+function updateAnswer() {
+  const a = G.ans;
+  for (let i = 0; i < 2; i++) {
+    let inp = IDLE;
+    if (i === a.turn) inp = (i === 1 && G.mode === 1) ? cpuAnswerInput() : humanInput(i);
+    updateSlime(i, inp);
+  }
+  a.options.forEach((o) => { o.age++; });
+  if (a.grace > 0) { a.grace--; return; }
+  a.timer--;
+  if (a.timer <= 0) { sfx.buzzer(); failTurn(); return; }
+  const s = G.slimes[a.turn];
+  for (const o of a.options) {
+    if (o.st !== "idle" || o.age < 12) continue;
+    if (Math.hypot(o.x - s.x, o.y - s.y) < SR + o.r && o.y <= s.y) { pickOption(o); break; }
+  }
+}
+
+function afterReveal() {
+  if (G.score[0] >= WIN_POINTS || G.score[1] >= WIN_POINTS) finishMatch("points");
+  else startCountdown();
+}
+
+function update() {
+  G.frame++;
+  for (const p of G.particles) { p.x += p.vx; p.y += p.vy; p.vy += p.g; p.life--; }
+  G.particles = G.particles.filter((p) => p.life > 0);
+  const st = G.state;
+  if (st === "countdown") {
+    updateSlime(0, humanInput(0));
+    updateSlime(1, G.mode === 1 ? IDLE : humanInput(1));
+    G.count--;
+    if (G.count > 0 && G.count % 60 === 0) sfx.beep(false);
+    if (G.count <= 0) { G.ball.live = true; G.ball.vx = rand(-0.8, 0.8); G.state = "play"; sfx.whistle(1, 0.3); }
+  } else if (st === "play") {
+    G.timeLeft -= 1 / 60;
+    updateSlime(0, humanInput(0));
+    updateSlime(1, G.mode === 1 ? aiPlayInput() : humanInput(1));
+    const b = G.ball;
+    if (b.hitCd > 0) b.hitCd--;
+    b.ang += b.vx / BR * 0.5;
+    for (let s = 0; s < SUBSTEPS && G.state === "play"; s++) {
+      stepBall(b);
+      const side = goalSide(b);
+      if (side) {
+        const defender = side === "L" ? 0 : 1;
+        const ownTouch = G.lastTouch === defender && G.frame - G.lastTouchFrame < OWN_GOAL_FRAMES;
+        if (!ownTouch) handleGoal(b, side);      // otherwise the ball simply bounces off the back wall and carries on
+      }
+    }
+    if (G.state === "play" && G.timeLeft <= 0) { G.timeLeft = 0; finishMatch("time"); }
+  } else if (st === "answer") {
+    updateAnswer();
+  } else if (st === "reveal") {
+    updateSlime(0, IDLE); updateSlime(1, IDLE);
+    G.ans.options.forEach((o) => { o.age++; });
+    if (--G.pause <= 0) afterReveal();
+  } else if (st === "end") {
+    updateSlime(0, humanInput(0));
+    updateSlime(1, G.mode === 1 ? IDLE : humanInput(1));
+    updateEnd();
+  }
+}
+
+/* ---------- Match end, kit pull, saving ---------- */
+function sheetReady() { return typeof SHEET_URL === "string" && /^https:\/\//.test(SHEET_URL); }
+function loadLocal() { try { const a = JSON.parse(lsGet(RESULTS_KEY) || "[]"); return Array.isArray(a) ? a : []; } catch (e) { return []; } }
+function saveLocal(r) { const all = loadLocal(); all.push(r); lsSet(RESULTS_KEY, JSON.stringify(all.slice(-500))); }
+
+function buildTable(results) {
+  const t = {};
+  const row = (n) => t[n] || (t[n] = { name: n, P: 0, W: 0, D: 0, L: 0, GF: 0, GA: 0, GD: 0, PTS: 0 });
+  const rec = (n, gf, ga) => {
+    const r = row(n); r.P++; r.GF += gf; r.GA += ga;
+    if (gf > ga) { r.W++; r.PTS += 3; } else if (gf === ga) { r.D++; r.PTS += 1; } else r.L++;
+  };
+  results.forEach((m) => { rec(m.p1, m.s1, m.s2); rec(m.p2, m.s2, m.s1); });
+  return sortTable(Object.keys(t).map((k) => { t[k].GD = t[k].GF - t[k].GA; return t[k]; }));
+}
+function sortTable(list) { return list.sort((a, b) => (b.PTS - a.PTS) || (b.GD - a.GD) || (b.GF - a.GF) || String(a.name).localeCompare(String(b.name))); }
+
+async function postJSON(obj) {
+  if (!sheetReady()) return "nourl";
+  try {
+    await fetch(SHEET_URL, { method: "POST", mode: "no-cors", headers: { "Content-Type": "text/plain;charset=utf-8" }, body: JSON.stringify(obj) });
+    return "sent";
+  } catch (e) { return "failed"; }
+}
+
+function finishMatch(reason) {
+  if (G.ending) return;
+  G.ending = true; G.state = "end"; G.endReason = reason; G.ans = null; G.ball && (G.ball.gone = true);
+  sfx.whistle(3, 0.3);
+  const r = { p1: pName(0), p2: pName(1), s1: G.score[0], s2: G.score[1], mode: G.mode === 1 ? "1 Player" : "2 Player" };
+  G.saveStatus = "Saving result...";
+  saveLocal(r);
+  postJSON({ p1: r.p1, p2: r.p2, s1: r.s1, s2: r.s2, mode: r.mode }).then((st) => {
+    G.saveStatus = st === "sent" ? "Result saved and sent to the league sheet."
+      : st === "nourl" ? "Result saved on this device. The league sheet link has not been added yet."
+      : "Result saved on this device. The league sheet could not be reached.";
+    $("ebSave").textContent = G.saveStatus;
+  });
+  $("ebSave").textContent = G.saveStatus;
+  const a = G.score[0], b = G.score[1];
+  const winner = a > b ? 0 : b > a ? 1 : -1;
+  G.winner = winner;
+  const human = winner === 0 || (winner === 1 && G.mode === 2);
+  G.pull = human && rollKit(G.names[winner]) ? { i: winner, phase: "ready" } : null;
+  G.endTimer = 50;
+  G.msg = "";
+}
+
+function pullKey(i) {
+  const h = humanInput(i);
+  return !!h.d;
+}
+
+function updateEnd() {
+  if (G.endTimer > 0 && --G.endTimer === 0 && !G.slot && $("kitPopup").hidden) $("endBar").hidden = false;
+  const p = G.pull;
+  if (p && p.phase === "ready") {
+    const now = pullKey(p.i);
+    if (now && !prevPull[p.i] && G.endTimer <= 20) startSlot(p.i);
+    prevPull[p.i] = now;
+  }
+  const sl = G.slot;
+  if (sl) {
+    sl.t++;
+    if (sl.phase === "spin" && sl.t >= sl.dur[sl.idx]) {
+      sl.t = 0;
+      if (sl.idx < sl.ids.length - 1) { sl.idx++; sfx.tick(); }
+      if (sl.idx >= sl.ids.length - 1) {
+        sl.phase = "land"; sl.t = 0;
+        const s = G.slimes[sl.i], k = KIT_BY_ID[sl.res];
+        burst(s.x, s.y - SR * 0.6, [k.c1, k.c2 || "#fff", "#ffd23d", "#ffffff", "#ff6ad5", "#6ff0ff"], 90, 8, 5, 80);
+        s.vy = -11; s.onGround = false;
+        sfx.unlock();
+      }
+    } else if (sl.phase === "land" && sl.t >= 80) {
+      showKitPopup();
+    }
+  }
+}
+
+function startSlot(i) {
+  audio();
+  const res = rollKit(G.names[i]);
+  if (!res) { G.pull = null; return; }
+  const ids = [], dur = [];
+  let ms = 46, total = 0;
+  while (total < 3600) {
+    let k;
+    do { k = KITS[Math.floor(Math.random() * KITS.length)]; } while (ids.length && ids[ids.length - 1] === k.id);
+    ids.push(k.id); dur.push(Math.max(2, Math.round(ms / STEP_MS))); total += ms; ms *= 1.13;
+  }
+  if (ids[ids.length - 1] === res.id) ids.pop() && dur.pop();
+  ids.push(res.id); dur.push(70);
+  G.slot = { i: i, ids: ids, dur: dur, idx: 0, t: 0, res: res.id, phase: "spin" };
+  G.pull.phase = "spinning";
+  $("endBar").hidden = true;
+}
+
+function showKitPopup() {
+  const sl = G.slot, k = KIT_BY_ID[sl.res], name = G.names[sl.i];
+  addOwned(name, k.id); saveSelection(name, k.id); G.kits[sl.i] = k;
+  postJSON({ action: "unlock", player: name, kit: k.id });
+  const c = $("kpCanvas").getContext("2d");
+  c.clearRect(0, 0, 480, 300);
+  drawSlimeBody(c, 240, 270, 130, k, { fx: 0.5 }, true);
+  $("kpName").textContent = "You unlocked the " + k.name + " kit!";
+  $("kpKind").textContent = k.cat === "colour" ? "New colour" : k.cat === "club" ? "Rare club kit" : "Rare national kit";
+  G.slot.phase = "popup";
+  $("kitPopup").hidden = false;
+}
+$("kpBtn").addEventListener("click", () => {
+  $("kitPopup").hidden = true; G.slot = null; if (G.pull) G.pull.phase = "done";
+  $("endBar").hidden = false;
+});
+
+/* ---------- League table ---------- */
+function renderTable(list, note) {
+  const box = $("leagueBox");
+  box.textContent = "";
+  if (!list.length) {
+    const d = document.createElement("div"); d.className = "empty"; d.textContent = "No matches yet. Play a game to get on the table!"; box.appendChild(d);
+  } else {
+    const tbl = document.createElement("table"); tbl.className = "league";
+    const cols = [["Pos", "pos"], ["Player", "l"], ["P", ""], ["W", ""], ["D", ""], ["L", ""], ["GF", ""], ["GA", ""], ["GD", ""], ["PTS", ""]];
+    const titles = { P: "Played", W: "Won", D: "Drawn", L: "Lost", GF: "Goals for", GA: "Goals against", GD: "Goal difference", PTS: "Points" };
+    const thead = document.createElement("thead"), hr = document.createElement("tr");
+    cols.forEach((c) => { const th = document.createElement("th"); th.textContent = c[0]; if (c[1] === "l") th.className = "l"; if (titles[c[0]]) th.title = titles[c[0]]; hr.appendChild(th); });
+    thead.appendChild(hr); tbl.appendChild(thead);
+    const tb = document.createElement("tbody");
+    list.forEach((p, i) => {
+      const tr = document.createElement("tr");
+      const gd = Number(p.GD) || 0;
+      const vals = [i + 1, p.name, p.P, p.W, p.D, p.L, p.GF, p.GA, (gd > 0 ? "+" : "") + gd, p.PTS];
+      vals.forEach((v, k) => {
+        const td = document.createElement("td");
+        td.textContent = String(v);
+        if (k === 0) td.className = "pos"; if (k === 1) td.className = "l name"; if (k === 9) td.className = "pts";
+        tr.appendChild(td);
+      });
+      tb.appendChild(tr);
+    });
+    tbl.appendChild(tb); box.appendChild(tbl);
+  }
+  $("leagueNote").textContent = note;
+}
+
+async function openLeague() {
+  showScreen("league");
+  $("leagueBox").textContent = "";
+  const local = () => buildTable(loadLocal());
+  if (!sheetReady()) { renderTable(local(), "Showing results saved on this device. Add the Google Script link to share a class-wide table."); return; }
+  $("leagueNote").textContent = "Loading the live league table...";
+  const ctl = new AbortController();
+  const timer = setTimeout(() => ctl.abort(), 12000);
+  try {
+    const res = await fetch(SHEET_URL, { method: "GET", signal: ctl.signal });
+    const data = await res.json();
+    if (!Array.isArray(data)) throw new Error("bad data");
+    const list = sortTable(data.map((r) => ({ name: String(r.name), P: +r.P || 0, W: +r.W || 0, D: +r.D || 0, L: +r.L || 0, GF: +r.GF || 0, GA: +r.GA || 0, GD: +r.GD || 0, PTS: +r.PTS || 0 })));
+    renderTable(list, "Live class league table.");
+  } catch (e) {
+    renderTable(local(), "Could not reach the live table, so this shows results saved on this device.");
+  } finally { clearTimeout(timer); }
+}
+
+/* ---------- Screens & setup ---------- */
+function showScreen(id) { document.querySelectorAll(".screen").forEach((s) => { s.hidden = s.id !== id; }); }
+
+const SLOT = [{ kit: "blue", token: 0, timer: null }, { kit: "red", token: 0, timer: null }];
+const slotName = (i) => String($("in" + i).value || "").replace(/\s+/g, " ").trim().slice(0, 20);
+
+function renderKits(i) {
+  const row = $("kits" + i); row.textContent = "";
+  const list = availableKits(slotName(i));
+  if (!list.some((k) => k.id === SLOT[i].kit)) SLOT[i].kit = list[0].id;
+  list.forEach((k) => {
+    const b = document.createElement("button");
+    b.type = "button"; b.className = "kit" + (k.id === SLOT[i].kit ? " sel" : ""); b.title = k.name; b.setAttribute("aria-label", k.name + " kit");
+    b.appendChild(kitIcon(k, 54, 34));
+    b.addEventListener("click", () => { SLOT[i].kit = k.id; renderKits(i); });
+    const show = () => { $("kn" + i).textContent = k.name; };
+    b.addEventListener("mouseenter", show); b.addEventListener("focus", show);
+    b.addEventListener("mouseleave", () => { $("kn" + i).textContent = KIT_BY_ID[SLOT[i].kit].name; });
+    row.appendChild(b);
+  });
+  $("kn" + i).textContent = KIT_BY_ID[SLOT[i].kit].name;
+}
+
+async function syncKits(i) {
+  const name = slotName(i), my = ++SLOT[i].token;
+  const fav = selectedKitId(name, i === 0 ? "blue" : "red");
+  SLOT[i].kit = fav;
+  renderKits(i);
+  if (!name) { $("ks" + i).textContent = ""; return; }
+  if (!sheetReady()) { $("ks" + i).textContent = "Showing kits saved on this device."; return; }
+  $("ks" + i).textContent = "Checking the league sheet for your kits...";
+  const ctl = new AbortController(), timer = setTimeout(() => ctl.abort(), 8000);
+  try {
+    const res = await fetch(SHEET_URL + (SHEET_URL.indexOf("?") >= 0 ? "&" : "?") + "action=kits&player=" + encodeURIComponent(name), { method: "GET", signal: ctl.signal });
+    const d = await res.json();
+    if (my !== SLOT[i].token) return;
+    if (d && Array.isArray(d.kits)) d.kits.forEach((id) => addOwned(name, id));
+    SLOT[i].kit = selectedKitId(name, SLOT[i].kit);
+    renderKits(i);
+    $("ks" + i).textContent = "Kits loaded from the league sheet.";
+  } catch (e) {
+    if (my === SLOT[i].token) $("ks" + i).textContent = "Could not reach the sheet. Showing kits saved on this device.";
+  } finally { clearTimeout(timer); }
+}
+function scheduleKits(i) { clearTimeout(SLOT[i].timer); SLOT[i].timer = setTimeout(() => syncKits(i), 450); }
+
+function fillRoster() {
+  const dl = $("classList"); dl.textContent = "";
+  CLASS_LIST.forEach((n) => { const o = document.createElement("option"); o.value = n; dl.appendChild(o); });
+  ["sel0", "sel1"].forEach((id) => {
+    const sel = $(id); sel.textContent = "";
+    const first = document.createElement("option"); first.value = ""; first.textContent = "Choose from class list..."; sel.appendChild(first);
+    CLASS_LIST.forEach((n) => { const o = document.createElement("option"); o.value = n; o.textContent = n; sel.appendChild(o); });
+  });
+  [[0, "sel0", "in0"], [1, "sel1", "in1"]].forEach((t) => {
+    const sel = $(t[1]), inp = $(t[2]);
+    sel.addEventListener("change", () => { if (sel.value) inp.value = sel.value; scheduleKits(t[0]); });
+    inp.addEventListener("input", () => { sel.value = CLASS_LIST.indexOf(inp.value.trim()) >= 0 ? inp.value.trim() : ""; scheduleKits(t[0]); });
+    inp.addEventListener("change", () => syncKits(t[0]));
+  });
+}
+
+function openSetup(mode) {
+  G.mode = mode;
+  $("setupTitle").textContent = mode === 1 ? "1 Player vs AI" : "2 Player Local";
+  $("p2human").hidden = mode === 1; $("p2cpu").hidden = mode !== 1;
+  $("p2title").textContent = mode === 1 ? "Computer" : "Player 2";
+  let saved = [];
+  try { saved = JSON.parse(lsGet(NAMES_KEY) || "[]"); } catch (e) { saved = []; }
+  if (!$("in0").value && saved[0]) { $("in0").value = saved[0]; $("sel0").value = CLASS_LIST.indexOf(saved[0]) >= 0 ? saved[0] : ""; }
+  if (!$("in1").value && saved[1]) { $("in1").value = saved[1]; $("sel1").value = CLASS_LIST.indexOf(saved[1]) >= 0 ? saved[1] : ""; }
+  $("setupMsg").textContent = "";
+  showScreen("setup");
+  syncKits(0); if (mode === 2) syncKits(1);
+}
+
+function cleanName(v, fallback) { const n = String(v || "").replace(/\s+/g, " ").trim().slice(0, 20); return n || fallback; }
+
+function confirmSetup() {
+  const n1 = cleanName($("in0").value, "Player 1");
+  const n2 = G.mode === 1 ? "CPU" : cleanName($("in1").value, "Player 2");
+  if (G.mode === 2 && n1.toLowerCase() === n2.toLowerCase()) { $("setupMsg").textContent = "Please choose two different names."; return; }
+  if (G.mode === 2 && SLOT[0].kit === SLOT[1].kit) { $("setupMsg").textContent = "Please pick two different kits so you can tell the slimes apart."; return; }
+  G.names = [n1, n2];
+  saveSelection(n1, SLOT[0].kit);
+  if (G.mode === 2) saveSelection(n2, SLOT[1].kit);
+  lsSet(NAMES_KEY, JSON.stringify([n1, G.mode === 2 ? n2 : ($("in1").value || "")]));
+  document.body.classList.toggle("touch", $("touchOpt").checked);
+  startMatch();
+}
+
+function quitToMenu() {
+  G.state = "menu"; G.ending = true; $("endBar").hidden = true; $("kitPopup").hidden = true; $("quitBtn").hidden = true;
+  G.slot = null; G.pull = null;
+  touch.forEach((t) => { t.l = t.r = t.j = t.d = false; });
+  showScreen("menu");
+}
+let quitArm = 0;
+$("quitBtn").addEventListener("click", () => {
+  if (quitArm && Date.now() - quitArm < 2500) { quitArm = 0; $("quitBtn").textContent = "Quit match"; quitToMenu(); }
+  else { quitArm = Date.now(); $("quitBtn").textContent = "Tap again to quit"; setTimeout(() => { if (Date.now() - quitArm >= 2400) { quitArm = 0; $("quitBtn").textContent = "Quit match"; } }, 2500); }
+});
+
+$("btn1p").addEventListener("click", () => { audio(); openSetup(1); });
+$("btn2p").addEventListener("click", () => { audio(); openSetup(2); });
+$("btnLeague").addEventListener("click", () => { audio(); openLeague(); });
+$("startBtn").addEventListener("click", confirmSetup);
+$("setupBack").addEventListener("click", () => showScreen("menu"));
+$("leagueBack").addEventListener("click", () => showScreen(G.state === "end" ? null : "menu"));
+$("leagueRefresh").addEventListener("click", openLeague);
+$("againBtn").addEventListener("click", startMatch);
+$("changeBtn").addEventListener("click", () => { $("endBar").hidden = true; openSetup(G.mode); });
+$("endLeague").addEventListener("click", openLeague);
+$("endMenu").addEventListener("click", quitToMenu);
+
+/* ---------- Touch buttons ---------- */
+document.querySelectorAll(".tbtn").forEach((btn) => {
+  const p = +btn.dataset.p, k = btn.dataset.k;
+  const down = (e) => { e.preventDefault(); touch[p][k] = true; btn.classList.add("on"); try { btn.setPointerCapture(e.pointerId); } catch (x) { /* not supported */ } };
+  const up = () => { touch[p][k] = false; btn.classList.remove("on"); };
+  btn.addEventListener("pointerdown", down);
+  ["pointerup", "pointercancel", "lostpointercapture"].forEach((ev) => btn.addEventListener(ev, up));
+  btn.addEventListener("contextmenu", (e) => e.preventDefault());
+});
+
+/* ---------- Drawing ---------- */
+const CROWD = [];
+(function () { let s = 7; const r = () => { s = (s * 16807) % 2147483647; return s / 2147483647; };
+  for (let i = 0; i < 380; i++) CROWD.push({ x: r() * W, y: CEIL + 8 + r() * (GROUND - CEIL - 80), r: 2 + r() * 2.6, c: ["#ff3d5a", "#2f8bff", "#ffd23d", "#c6ff3d", "#ff7ad9", "#6ff0ff"][Math.floor(r() * 6)], a: 0.25 + r() * 0.35 }); })();
+
+function rr(x, y, w, h, r) { ctx.beginPath(); if (ctx.roundRect) ctx.roundRect(x, y, w, h, r); else ctx.rect(x, y, w, h); }
+
+function drawBackdrop() {
+  const g = ctx.createLinearGradient(0, CEIL, 0, GROUND);
+  g.addColorStop(0, "#0b0f3a"); g.addColorStop(1, "#2a1170");
+  ctx.fillStyle = g; ctx.fillRect(0, CEIL, W, GROUND - CEIL);
+  for (const c of CROWD) { ctx.globalAlpha = c.a; ctx.fillStyle = c.c; ctx.beginPath(); ctx.arc(c.x, c.y, c.r, 0, Math.PI * 2); ctx.fill(); }
+  ctx.globalAlpha = 1;
+  [180, 470, 730, 1020].forEach((x, i) => {
+    const sg2 = ctx.createLinearGradient(0, CEIL, 0, GROUND);
+    sg2.addColorStop(0, i % 2 ? "rgba(255,61,90,.22)" : "rgba(47,139,255,.22)"); sg2.addColorStop(1, "rgba(255,255,255,0)");
+    ctx.fillStyle = sg2; ctx.beginPath(); ctx.moveTo(x - 6, CEIL); ctx.lineTo(x + 6, CEIL); ctx.lineTo(x + 80, GROUND); ctx.lineTo(x - 80, GROUND); ctx.closePath(); ctx.fill();
+  });
+  ctx.shadowBlur = 14;
+  ctx.shadowColor = "#6ff0ff"; ctx.fillStyle = "#6ff0ff"; ctx.fillRect(0, CEIL, W, 4);
+  ctx.shadowColor = "#ff7ad9"; ctx.fillStyle = "#ff7ad9"; ctx.fillRect(0, GROUND - 42, W, 3);
+  ctx.shadowBlur = 0;
+  const top = GROUND - 40;
+  for (let i = 0; i < 14; i++) { ctx.fillStyle = i % 2 ? "#1d9c43" : "#25b650"; ctx.fillRect(i * (W / 14), top, W / 14 + 1, H - top); }
+  const pg = ctx.createLinearGradient(0, top, 0, H); pg.addColorStop(0, "rgba(0,0,0,.28)"); pg.addColorStop(0.3, "rgba(0,0,0,0)");
+  ctx.fillStyle = pg; ctx.fillRect(0, top, W, H - top);
+  ctx.strokeStyle = "rgba(255,255,255,.85)"; ctx.lineWidth = 3;
+  ctx.beginPath(); ctx.moveTo(0, top + 1.5); ctx.lineTo(W, top + 1.5); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(W / 2, top); ctx.lineTo(W / 2, H); ctx.stroke();
+  ctx.beginPath(); ctx.ellipse(W / 2, GROUND + 30, 100, 26, 0, 0, Math.PI * 2); ctx.stroke();
+}
+
+function drawGoal(side) {
+  const x0 = side === 0 ? 0 : W - GOAL_W;
+  ctx.save();
+  ctx.fillStyle = "rgba(255,255,255,.10)"; ctx.fillRect(x0, BAR_Y, GOAL_W, GOAL_H);
+  ctx.strokeStyle = "rgba(255,255,255,.35)"; ctx.lineWidth = 1;
+  ctx.beginPath();
+  for (let x = 0; x <= GOAL_W; x += 10) { ctx.moveTo(x0 + x, BAR_Y); ctx.lineTo(x0 + x, GROUND); }
+  for (let y = 0; y <= GOAL_H; y += 10) { ctx.moveTo(x0, BAR_Y + y); ctx.lineTo(x0 + GOAL_W, BAR_Y + y); }
+  ctx.stroke();
+  ctx.restore();
+}
+function drawGoalFrame(side) {
+  const x0 = side === 0 ? 0 : W - GOAL_W;
+  ctx.save();
+  ctx.shadowColor = "#ffffff"; ctx.shadowBlur = 12; ctx.fillStyle = "#ffffff";
+  ctx.fillRect(x0, BAR_Y, GOAL_W, BAR_T);
+  ctx.fillRect(side === 0 ? GOAL_W - 5 : W - GOAL_W, BAR_Y, 5, GOAL_H);
+  ctx.restore();
+}
+
+function lookTarget(i) {
+  const s = G.slimes[i];
+  const b = G.ball;
+  if (b && !b.gone) return { tx: b.x, ty: b.y };
+  if (G.ans) {
+    let best = null, bd = 1e9;
+    G.ans.options.forEach((o) => { const d = Math.hypot(o.x - s.x, o.y - s.y); if (o.st === "idle" && d < bd) { bd = d; best = o; } });
+    if (G.ans.options.length && !best) best = G.ans.options.filter((o) => o.st === "correct" || o.st === "show")[0];
+    if (best) return { tx: best.x, ty: best.y };
+  }
+  return { fx: i === 0 ? 0.7 : -0.7 };
+}
+
+function drawSlime(i) {
+  const s = G.slimes[i], k = kitOf(i);
+  ctx.fillStyle = "rgba(0,0,0,.28)";
+  const h = (GROUND - s.y) / 150;
+  ctx.beginPath(); ctx.ellipse(s.x, GROUND + 4, SR * (1 - h * 0.35), 6, 0, 0, Math.PI * 2); ctx.fill();
+  const spin = G.slot && G.slot.i === i && G.slot.phase === "spin";
+  drawSlimeBody(ctx, s.x, s.y, SR, k, lookTarget(i), true);
+  if (spin) { ctx.save(); ctx.strokeStyle = "#ffd23d"; ctx.lineWidth = 3; ctx.shadowColor = "#ffd23d"; ctx.shadowBlur = 16; ctx.beginPath(); ctx.arc(s.x, s.y, SR + 6, Math.PI, 0); ctx.stroke(); ctx.restore(); }
+  ctx.font = "700 18px " + FONT_D; ctx.textAlign = "center"; ctx.textBaseline = "alphabetic";
+  ctx.lineWidth = 4; ctx.strokeStyle = "rgba(5,8,30,.9)"; ctx.strokeText(pName(i), s.x, s.y - SR - 8);
+  ctx.fillStyle = "#fff"; ctx.fillText(pName(i), s.x, s.y - SR - 8);
+}
+
+function drawBall() {
+  const b = G.ball; if (!b || b.gone) return;
+  if (!b.live) {
+    const pulse = 1 + 0.12 * Math.sin(G.frame * 0.15);
+    ctx.save(); ctx.strokeStyle = "rgba(198,255,61,.9)"; ctx.lineWidth = 3; ctx.shadowColor = "#c6ff3d"; ctx.shadowBlur = 18;
+    ctx.beginPath(); ctx.arc(b.x, b.y, (BR + 12) * pulse, 0, Math.PI * 2); ctx.stroke(); ctx.restore();
+  }
+  const hh = clamp((GROUND - b.y) / 450, 0, 1);
+  ctx.fillStyle = "rgba(0,0,0," + (0.3 - hh * 0.15) + ")";
+  ctx.beginPath(); ctx.ellipse(b.x, GROUND + 4, BR * (1 - hh * 0.4), 5, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.save(); ctx.translate(b.x, b.y);
+  const g = ctx.createRadialGradient(-6, -7, 3, 0, 0, BR);
+  g.addColorStop(0, "#ffffff"); g.addColorStop(1, "#c8d0e8");
+  ctx.fillStyle = g; ctx.beginPath(); ctx.arc(0, 0, BR, 0, Math.PI * 2); ctx.fill();
+  ctx.rotate(b.ang); ctx.fillStyle = "#1a2050";
+  ctx.beginPath(); ctx.arc(0, 0, BR * 0.36, 0, Math.PI * 2); ctx.fill();
+  for (let k = 0; k < 5; k++) { const a = k * Math.PI * 2 / 5; ctx.beginPath(); ctx.arc(Math.cos(a) * BR * 0.78, Math.sin(a) * BR * 0.78, 3.2, 0, Math.PI * 2); ctx.fill(); }
+  ctx.rotate(-b.ang);
+  ctx.strokeStyle = "#1a2050"; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(0, 0, BR - 1, 0, Math.PI * 2); ctx.stroke();
+  ctx.restore();
+}
+
+function drawBubbles() {
+  const a = G.ans; if (!a) return;
+  a.options.forEach((o, n) => {
+    const t = clamp((o.age) / 16, 0, 1); if (t <= 0) return;
+    const bob = Math.sin(G.frame * 0.05 + n * 2) * 4;
+    const sc = t < 1 ? 0.3 + 0.7 * (1 - Math.pow(1 - t, 3)) : 1;
+    ctx.save(); ctx.translate(o.x, o.y + bob); ctx.scale(sc, sc);
+    let fill1 = "#ffffff", fill2 = "#bfe9ff", glow = "#6ff0ff", txt = "#0a0f33";
+    if (o.st === "correct" || o.st === "show") { fill1 = "#eaffea"; fill2 = "#74f08a"; glow = "#74f08a"; }
+    if (o.st === "wrong") { fill1 = "#ffe3e7"; fill2 = "#ff8c9d"; glow = "#ff3d5a"; }
+    ctx.shadowColor = glow; ctx.shadowBlur = o.st === "correct" || o.st === "show" ? 30 : 18;
+    const g = ctx.createRadialGradient(-12, -14, 4, 0, 0, o.r);
+    g.addColorStop(0, fill1); g.addColorStop(1, fill2);
+    ctx.fillStyle = g; ctx.beginPath(); ctx.arc(0, 0, o.r, 0, Math.PI * 2); ctx.fill();
+    ctx.shadowBlur = 0; ctx.lineWidth = 4; ctx.strokeStyle = glow; ctx.stroke();
+    ctx.font = "800 " + (String(fmtNum(o.v)).length > 3 ? 38 : 48) + "px " + FONT_D; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillStyle = txt;
+    ctx.fillText(fmtNum(o.v), 0, 3);
+    if (o.st === "wrong") { ctx.strokeStyle = "#c4152f"; ctx.lineWidth = 6; ctx.beginPath(); ctx.moveTo(-o.r * 0.6, -o.r * 0.6); ctx.lineTo(o.r * 0.6, o.r * 0.6); ctx.moveTo(o.r * 0.6, -o.r * 0.6); ctx.lineTo(-o.r * 0.6, o.r * 0.6); ctx.stroke(); }
+    ctx.restore();
+  });
+}
+
+function drawHUD() {
+  const g = ctx.createLinearGradient(0, 0, 0, CEIL); g.addColorStop(0, "#050722"); g.addColorStop(1, "#0d1442");
+  ctx.fillStyle = g; ctx.fillRect(0, 0, W, CEIL);
+  const c0 = hudCol(G.kits[0]), c1 = hudCol(G.kits[1]);
+  ctx.textBaseline = "alphabetic";
+  ctx.textAlign = "left"; ctx.font = "800 24px " + FONT_D; ctx.fillStyle = c0; ctx.fillText(pName(0).toUpperCase(), 26, 38);
+  ctx.font = "800 76px " + FONT_D; ctx.fillStyle = "#ffffff"; ctx.fillText(String(G.score[0]), 26, 108);
+  ctx.textAlign = "right"; ctx.font = "800 24px " + FONT_D; ctx.fillStyle = c1; ctx.fillText(pName(1).toUpperCase(), W - 26, 38);
+  ctx.font = "800 76px " + FONT_D; ctx.fillStyle = "#ffffff"; ctx.fillText(String(G.score[1]), W - 26, 108);
+  ctx.fillStyle = c0; ctx.fillRect(0, CEIL - 4, W / 2, 4);
+  ctx.fillStyle = c1; ctx.fillRect(W / 2, CEIL - 4, W / 2, 4);
+  const t = Math.max(0, Math.ceil(G.timeLeft));
+  const clock = Math.floor(t / 60) + ":" + String(t % 60).padStart(2, "0");
+  const inAnswer = G.state === "answer" || G.state === "reveal";
+  ctx.textAlign = "center";
+  if (G.state === "end") {
+    ctx.font = "800 34px " + FONT_D; ctx.fillStyle = "#c6ff3d"; ctx.fillText("FULL TIME", W / 2, 44);
+    const a = G.score[0], b = G.score[1];
+    ctx.font = "800 48px " + FONT_D; ctx.fillStyle = "#ffffff";
+    ctx.fillText(a === b ? "It's a draw! 1 point each" : (a > b ? pName(0) : pName(1)) + " wins!", W / 2, 96);
+    ctx.font = "700 16px " + FONT_D; ctx.fillStyle = "#9aa5dc"; ctx.fillText(G.endReason === "time" ? "TIME IS UP" : "FIRST TO " + WIN_POINTS + " POINTS", W / 2, 121);
+    return;
+  }
+  ctx.font = (inAnswer ? "800 24px " : "800 52px ") + FONT_D;
+  ctx.fillStyle = t <= 10 && G.state === "play" ? "#ff5a6e" : "#c6ff3d";
+  ctx.fillText(clock, W / 2, inAnswer ? 26 : 72);
+  if (inAnswer && G.q) {
+    const eq = fmtEq(G.q.q);
+    let fs = 56; ctx.font = "800 " + fs + "px " + FONT_D;
+    while (ctx.measureText(eq).width > 470 && fs > 30) { fs -= 2; ctx.font = "800 " + fs + "px " + FONT_D; }
+    const pw = 520, px = W / 2 - pw / 2, py = 34, ph = 66;
+    ctx.save(); ctx.shadowColor = "#ffd23d"; ctx.shadowBlur = 16; ctx.fillStyle = "#080c26"; rr(px, py, pw, ph, 14); ctx.fill();
+    ctx.lineWidth = 3; ctx.strokeStyle = "#ffd23d"; ctx.stroke(); ctx.restore();
+    ctx.fillStyle = "#ffffff"; ctx.textBaseline = "middle"; ctx.fillText(eq, W / 2, py + ph / 2 + 3);
+    ctx.textBaseline = "alphabetic";
+    if (G.state === "answer" && G.ans.grace <= 0 && !(G.ans.think > 0)) {
+      ctx.fillStyle = "#2a3487"; ctx.fillRect(px + 10, py + ph + 2, pw - 20, 4);
+      ctx.fillStyle = "#ffd23d"; ctx.fillRect(px + 10, py + ph + 2, (pw - 20) * clamp(G.ans.timer / 1200, 0, 1), 4);
+    }
+  }
+  ctx.font = "700 19px " + FONT_D; ctx.fillStyle = "#e7ecff";
+  ctx.fillText(inAnswer ? G.msg : "LEVEL " + G.level + "   ·   FIRST TO " + WIN_POINTS, W / 2, 123);
+}
+
+function drawCountdown() {
+  if (G.state !== "countdown") return;
+  const n = Math.ceil(G.count / 60), f = (G.count % 60) / 60;
+  ctx.save(); ctx.textAlign = "center"; ctx.textBaseline = "middle";
+  ctx.font = "800 46px " + FONT_D; ctx.lineWidth = 8; ctx.strokeStyle = "rgba(5,8,30,.9)"; ctx.strokeText("GET READY", W / 2, 330);
+  ctx.fillStyle = "#c6ff3d"; ctx.fillText("GET READY", W / 2, 330);
+  const sc = 0.8 + 0.4 * f;
+  ctx.translate(W / 2, 450); ctx.scale(sc, sc);
+  ctx.font = "800 220px " + FONT_D; ctx.lineWidth = 18; ctx.strokeStyle = "rgba(5,8,30,.95)"; ctx.strokeText(String(n), 0, 0);
+  ctx.shadowColor = "#ffd23d"; ctx.shadowBlur = 40; ctx.fillStyle = "#ffffff"; ctx.fillText(String(n), 0, 0);
+  ctx.restore();
+}
+
+function drawWorking() {
+  if (G.state !== "reveal" || !G.working) return;
+  ctx.save(); ctx.font = "700 30px " + FONT_D;
+  const lines = G.working.split("   →   ");
+  const w = Math.min(W - 160, Math.max(...lines.map((l) => ctx.measureText(l).width)) + 60), h = 96;
+  const x = W / 2 - w / 2, y = 190;
+  ctx.fillStyle = "rgba(5,8,30,.88)"; rr(x, y, w, h, 16); ctx.fill();
+  ctx.lineWidth = 3; ctx.strokeStyle = G.ans && G.ans.result === "correct" ? "#74f08a" : "#ffd23d"; ctx.stroke();
+  ctx.textAlign = "center"; ctx.textBaseline = "middle";
+  ctx.fillStyle = "#9aa5dc"; ctx.fillText(lines[0], W / 2, y + 30);
+  ctx.fillStyle = "#ffffff"; ctx.fillText("" + (lines[1] || ""), W / 2, y + 68);
+  ctx.restore();
+}
+
+function speech(x, y, lines, accent) {
+  ctx.save(); ctx.font = "800 24px " + FONT_D;
+  const w = Math.max(...lines.map((l) => ctx.measureText(l).width)) + 36, h = lines.length * 30 + 20;
+  const bx = clamp(x - w / 2, 10, W - w - 10), by = y - h;
+  ctx.fillStyle = "rgba(5,8,30,.92)"; rr(bx, by, w, h, 12); ctx.fill();
+  ctx.lineWidth = 3; ctx.strokeStyle = accent; ctx.shadowColor = accent; ctx.shadowBlur = 12; ctx.stroke(); ctx.shadowBlur = 0;
+  ctx.beginPath(); ctx.moveTo(x - 9, by + h); ctx.lineTo(x, by + h + 12); ctx.lineTo(x + 9, by + h); ctx.fillStyle = accent; ctx.fill();
+  ctx.fillStyle = "#fff"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+  lines.forEach((l, i) => ctx.fillText(l, bx + w / 2, by + 10 + 15 + i * 30));
+  ctx.restore();
+}
+
+function drawOverlays() {
+  const a = G.ans;
+  if (G.state === "answer" && a && a.turn === 1 && G.mode === 1 && a.think > 0) {
+    const s = G.slimes[1], dots = ".".repeat(1 + Math.floor(G.frame / 18) % 3);
+    speech(s.x, s.y - SR - 34, ["CPU is thinking" + dots], "#ff9aa9");
+  }
+  if (G.state === "answer" && a && a.grace > 0 && a.phase === "steal") {
+    const s = G.slimes[a.turn]; speech(s.x, s.y - SR - 34, ["Steal!"], "#ffd23d");
+  }
+  if (G.state === "end" && G.pull && G.pull.phase === "ready" && !G.slot) {
+    const s = G.slimes[G.pull.i];
+    const isTouch = document.body.classList.contains("touch");
+    const key = isTouch ? "the ▼ button" : (G.pull.i === 0 ? (G.mode === 1 ? "S or ↓" : "S") : "↓");
+    speech(s.x, s.y - SR - 38, ["YOU WON!", "Press " + key + " for a new kit"], "#c6ff3d");
+  }
+  if (G.slot && G.slot.phase === "spin") {
+    const s = G.slimes[G.slot.i]; speech(s.x, s.y - SR - 38, ["Pulling the lever..."], "#ffd23d");
+  }
+}
+
+function draw() {
+  const k = cv.width / W;
+  ctx.setTransform(k, 0, 0, k, 0, 0);
+  ctx.clearRect(0, 0, W, H);
+  drawBackdrop(); drawGoal(0); drawGoal(1);
+  drawBubbles();
+  drawBall();
+  if (G.slimes.length) { drawSlime(0); drawSlime(1); }
+  drawGoalFrame(0); drawGoalFrame(1);
+  for (const p of G.particles) { ctx.globalAlpha = clamp(p.life / p.max, 0, 1); ctx.fillStyle = p.c; ctx.fillRect(p.x - p.r / 2, p.y - p.r / 2, p.r, p.r * 0.7); }
+  ctx.globalAlpha = 1;
+  drawHUD(); drawWorking(); drawCountdown(); drawOverlays();
+}
+
+/* ---------- Sizing & loop ---------- */
+function fitStage() {
+  const wrap = $("stageWrap");
+  const aw = wrap.clientWidth, ah = wrap.clientHeight;
+  if (aw < 10 || ah < 10) return;
+  const sc = Math.min(aw / W, ah / H);
+  const cw = Math.floor(W * sc), ch = Math.floor(H * sc);
+  const st = $("stage");
+  st.style.width = cw + "px"; st.style.height = ch + "px"; st.style.setProperty("--s", String(cw / W));
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  const iw = Math.round(cw * dpr);
+  if (cv.width !== iw) { cv.width = iw; cv.height = Math.round(iw * H / W); }
+}
+window.addEventListener("resize", fitStage);
+window.addEventListener("orientationchange", () => setTimeout(fitStage, 200));
+if (window.ResizeObserver) new ResizeObserver(fitStage).observe($("stageWrap"));
+
+let last = 0, acc = 0;
+function frame(t) {
+  requestAnimationFrame(frame);
+  const d = Math.min(t - last, 100); last = t; acc += d;
+  if (G.state === "menu") { acc = 0; return; }
+  while (acc >= STEP_MS) { update(); acc -= STEP_MS; if (G.state === "menu") break; }
+  draw();
+}
+
+/* ---------- Boot ---------- */
+fillRoster();
+$("quitBtn").hidden = true;
+$("touchOpt").checked = ("ontouchstart" in window) || (navigator.maxTouchPoints > 0) || (window.matchMedia && window.matchMedia("(pointer: coarse)").matches);
+document.body.classList.toggle("touch", $("touchOpt").checked);
+$("touchOpt").addEventListener("change", () => document.body.classList.toggle("touch", $("touchOpt").checked));
+if (document.fonts && document.fonts.load) { document.fonts.load('800 40px "Barlow Condensed"').catch(() => {}); }
+renderKits(0); renderKits(1);
+fitStage();
+requestAnimationFrame((t) => { last = t; requestAnimationFrame(frame); });
+</script>
+
+</body></html>
